@@ -100,7 +100,13 @@ itself.
    that order (see "The five checks" below). Any failure aborts here —
    before any git mutation.
 1. Stages `issues/issue-<#>.md` (its own edits, e.g. the `## 구현 결과` section).
+   If the issue file has a slug (`issue-N-slug.md`), the script resolves
+   it automatically: it tries `issue-N.md` first, then falls back to the
+   unique tag-less `issue-N-<slug>.md` match. Fails fast if neither
+   exists or if the slug form is ambiguous.
 2. Archives it: `git mv` to `issues/archive/YYYY/MM/DD/issue-<#>.md`.
+   The original filename (including slug, if any) is preserved as-is —
+   "파일명은 그대로" convention (`git log --follow` 이력 추적 보존).
 3. `git add -u` — stages the rest of the already-tracked changes. Never touches untracked files.
 4. Commits code + archiving as **one commit**, message `issue-<#>: <summary>` with the `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>` trailer appended automatically — don't add it yourself.
 5. `git push`.

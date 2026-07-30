@@ -38,9 +38,16 @@ cd "$REPO_ROOT"
 if [ "${1:-}" = "--pending" ]; then
   shopt -s nullglob
   for f in issues/issue-*.md issues/autofix-*.md; do
+    # 산출물·파킹 마커가 붙은 파일 제외
+    [[ "$f" == *__* ]] && continue
     if grep -q '\*\*구현 완료 일시\*\*:' "$f" \
        && ! grep -q '\*\*구현 완료 일시\*\*: *(미정)' "$f"; then
-      basename "$f" .md
+      # 슬러그를 제거하고 stream-N 형식으로만 출력
+      fname=$(basename "$f" .md)      # e.g. issue-280-some-slug
+      stream_part="${fname%%-*}"      # issue / autofix
+      rest="${fname#*-}"              # 280-some-slug 또는 280
+      n_part="${rest%%-*}"            # 280
+      echo "${stream_part}-${n_part}"
     fi
   done
   exit 0
@@ -57,11 +64,27 @@ case "$ISSUE_NUM" in
     *)                 STREAM="issue";            N="$ISSUE_NUM" ;;
 esac
 
+# 슬러그 없는 경로 우선 시도; 없으면 슬러그 있는 후보 자동 탐색.
+# 산출물·마커 파일(__가 포함된 파일)은 제외한다.
 ISSUE_FILE="issues/${STREAM}-${N}.md"
 if [ ! -f "$ISSUE_FILE" ]; then
-  echo "ERROR: $ISSUE_FILE not found" >&2
-  exit 1
+  shopt -s nullglob
+  SLUG_CANDIDATES=("issues/${STREAM}-${N}"-*.md)
+  shopt -u nullglob
+  # 마커 파일(__) 제외
+  ISSUE_FILE=""
+  for _c in "${SLUG_CANDIDATES[@]}"; do
+    [[ "$_c" == *__* ]] && continue
+    ISSUE_FILE="$_c"
+    break
+  done
+  if [ -z "$ISSUE_FILE" ] || [ ! -f "$ISSUE_FILE" ]; then
+    echo "ERROR: issues/${STREAM}-${N}.md (또는 슬러그 변형) not found" >&2
+    exit 1
+  fi
 fi
+# 아카이브 시 원본 파일명(슬러그 포함)을 그대로 보존한다.
+ISSUE_BASENAME=$(basename "$ISSUE_FILE")
 
 # 0. Python-project verification gate. Detected via pyproject.toml at the
 # repo root. For each check, prefer the project's own ./run-<name>.sh if it
@@ -95,7 +118,8 @@ git add "$ISSUE_FILE"
 # 2. Archive: move to issues/archive/YYYY/MM/DD/ (git mv auto-stages the rename).
 ARCHIVE_DIR="issues/archive/$(date +%Y/%m/%d)"
 mkdir -p "$ARCHIVE_DIR"
-git mv "$ISSUE_FILE" "$ARCHIVE_DIR/${STREAM}-${N}.md"
+# 파일명은 그대로 보존 (SKILL.md "파일명은 그대로" 규약 — 슬러그 포함).
+git mv "$ISSUE_FILE" "$ARCHIVE_DIR/${ISSUE_BASENAME}"
 
 # 2.5. Archive this issue's output artifacts alongside it (code-review
 # files, refix-plan, agent-stats.json — issue-47, v3 marker rename).

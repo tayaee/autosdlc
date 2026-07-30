@@ -35,10 +35,19 @@ Set-Location $RepoRoot
 # but the issue file hasn't been archived yet. No separate state file --
 # this reuses the issue template's own completion marker.
 if ($args[0] -eq "--pending") {
-    Get-ChildItem -Path "issues" -Filter "issue-*.md" -File -ErrorAction SilentlyContinue | ForEach-Object {
-        $content = Get-Content $_.FullName -Raw
+    $allFiles = @()
+    $allFiles += Get-ChildItem -Path "issues" -Filter "issue-*.md" -File -ErrorAction SilentlyContinue
+    $allFiles += Get-ChildItem -Path "issues" -Filter "autofix-*.md" -File -ErrorAction SilentlyContinue
+    foreach ($f in $allFiles) {
+        # 산출물·파킹 마커(언더스코어어 이중) 제외
+        if ($f.Name -like "*__*") { continue }
+        $content = Get-Content $f.FullName -Raw
         if ($content -match '\*\*구현 완료 일시\*\*:' -and $content -notmatch '\*\*구현 완료 일시\*\*:\s*\(미정\)') {
-            $_.BaseName -replace '^issue-', ''
+            # 슬러그를 제거하고 stream-N 형식으로만 출력
+            $fname = $f.BaseName   # e.g. issue-280-some-slug
+            if ($fname -match '^(issue|autofix)-(\d+)') {
+                "$($Matches[1])-$($Matches[2])"
+            }
         }
     }
     exit 0
@@ -48,11 +57,29 @@ if ($args.Count -lt 2) { Show-Usage }
 $IssueNum = $args[0]
 $Summary = ($args[1..($args.Count - 1)] -join ' ')
 
-$IssueFile = "issues/issue-$IssueNum.md"
-if (-not (Test-Path $IssueFile -PathType Leaf)) {
-    Write-Host "ERROR: $IssueFile not found"
-    exit 1
+# Stream detection: "issue-N" / "autofix-N" / bare "N" (defaults to issue).
+if ($IssueNum -match '^(issue|autofix)-(.+)$') {
+    $Stream = $Matches[1]
+    $N = $Matches[2]
+} else {
+    $Stream = 'issue'
+    $N = $IssueNum
 }
+
+# 슬러그 없는 경로 우선 시도; 없으면 슬러그 포함 후보 탐색.
+$IssueFile = "issues/$Stream-$N.md"
+if (-not (Test-Path $IssueFile -PathType Leaf)) {
+    # 슬러그 후보 탐색 (산출물·마커 파일 제외)
+    $slugCandidates = Get-ChildItem -Path "issues" -Filter "$Stream-$N-*.md" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notlike "*__*" }
+    $IssueFile = ($slugCandidates | Select-Object -First 1)?.FullName
+    if (-not $IssueFile -or -not (Test-Path $IssueFile -PathType Leaf)) {
+        Write-Host "ERROR: issues/$Stream-$N.md (또는 슬러그 변형) not found"
+        exit 1
+    }
+}
+# 아카이브 시 원본 파일명(슬러그 포함)을 그대로 보존한다.
+$IssueBasename = [System.IO.Path]::GetFileName($IssueFile)
 
 # 0. Python-project verification gate. Detected via pyproject.toml at the
 # repo root. For each check, prefer the project's own .\run-<name>.ps1 if
@@ -91,7 +118,8 @@ git add $IssueFile
 # 2. Archive: move to issues/archive/YYYY/MM/DD/ (git mv auto-stages the rename).
 $ArchiveDir = "issues/archive/$(Get-Date -Format 'yyyy/MM/dd')"
 New-Item -ItemType Directory -Force -Path $ArchiveDir | Out-Null
-git mv $IssueFile "$ArchiveDir/issue-$IssueNum.md"
+# 파일명은 그대로 보존 (SKILL.md "파일명은 그대로" 규약 — 슬러그 포함).
+git mv $IssueFile "$ArchiveDir/$IssueBasename"
 
 # 2.5. Archive this issue's output artifacts alongside it (code-review
 # files, refix-plan, agent-stats.json -- issue-47, v3 marker rename).
@@ -106,10 +134,10 @@ foreach ($tf in $TypeFiles) {
     if ($tf.Name -like "*__agent-stats.json") {
         $LogCostSummary = Join-Path $RepoRoot "tools/log-cost-summary.py"
         if (Test-Path $LogCostSummary) {
-            uv run $LogCostSummary $RepoRoot "issue-$IssueNum"
+            uv run $LogCostSummary $RepoRoot "$Stream-$N"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
-        uv run (Join-Path $DefaultsDir "agent-stats-archive.py") $RepoRoot "issue-$IssueNum"
+        uv run (Join-Path $DefaultsDir "agent-stats-archive.py") $RepoRoot "$Stream-$N"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     git mv $tf.FullName "$ArchiveDir/$($tf.Name)"
@@ -119,7 +147,7 @@ foreach ($tf in $TypeFiles) {
 git add -u
 
 # 4. Commit code + archiving as ONE commit.
-$CommitMsg = "issue-${IssueNum}: $Summary`n`nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+$CommitMsg = "$Stream-${N}: $Summary`n`nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 git commit -m $CommitMsg
 
 # 5. Push.
@@ -146,4 +174,4 @@ if (Test-Path "deploy-to-dev.ps1" -PathType Leaf) {
     Write-Warning "Add one (deploy-to-dev.ps1, or deploy.ps1 accepting --env <env>) to enable it."
 }
 
-Write-Host "✓ aacpd complete: issue-$IssueNum archived to $ArchiveDir/, committed, pushed, $DeployStatus."
+Write-Host "✓ aacpd complete: $Stream-$N archived to $ArchiveDir/, committed, pushed, $DeployStatus."
