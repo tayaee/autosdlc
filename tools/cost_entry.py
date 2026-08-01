@@ -92,9 +92,11 @@ def _find_check_usage_js() -> Path | None:
 
 
 def query_check_usage_pct(provider_key: str) -> tuple[float | None, float | None]:
-    """claude-dashboard의 check-usage.js --json을 호출해 provider_key(claude/gemini/codex/zai)의
+    """claude-dashboard의 check-usage.js --json을 호출해 provider_key(claude/gemini/codex/zai/claude-via-gemini)의
     fiveHourPercent/sevenDayPercent를 얻는다.
 
+    - gemini: Gemini API / Google AI Pro 버킷 중 gemini 모델 버킷 (없으면 fiveHourPercent)
+    - claude-via-gemini: Google AI Pro 버킷 중 claude 모델 버킷 (없으면 claude provider 폴백)
     조회 불가능한 모든 경우(플러그인 미설치, node 실패, provider 미설치/에러)에
     (None, None)을 반환한다 — 침묵하지 않고 사유를 stderr에 남긴다.
     """
@@ -112,8 +114,32 @@ def query_check_usage_pct(provider_key: str) -> tuple[float | None, float | None
         print(f"WARN: check-usage 조회 실패 ({exc}) — used_pct 조회 불가", file=sys.stderr)
         return None, None
 
+    if provider_key == "claude-via-gemini":
+        gemini_entry = payload.get("gemini")
+        if gemini_entry and isinstance(gemini_entry, dict) and gemini_entry.get("buckets"):
+            for b in gemini_entry["buckets"]:
+                if isinstance(b, dict) and "claude" in str(b.get("modelId", "")).lower():
+                    return b.get("usedPercent"), None
+        claude_entry = payload.get("claude")
+        if claude_entry and isinstance(claude_entry, dict) and claude_entry.get("available") and not claude_entry.get("error"):
+            return claude_entry.get("fiveHourPercent"), claude_entry.get("sevenDayPercent")
+        print(f"WARN: check-usage의 {provider_key!r} provider/bucket 사용 불가 — used_pct null 기록", file=sys.stderr)
+        return None, None
+
+    if provider_key == "gemini":
+        gemini_entry = payload.get("gemini")
+        if not gemini_entry or not isinstance(gemini_entry, dict) or not gemini_entry.get("available") or gemini_entry.get("error"):
+            print(f"WARN: check-usage의 {provider_key!r} provider 사용 불가 — used_pct null 기록", file=sys.stderr)
+            return None, None
+        if gemini_entry.get("buckets"):
+            for b in gemini_entry["buckets"]:
+                if isinstance(b, dict) and "gemini" in str(b.get("modelId", "")).lower():
+                    return b.get("usedPercent"), None
+        return gemini_entry.get("fiveHourPercent"), gemini_entry.get("sevenDayPercent")
+
     entry = payload.get(provider_key)
-    if not entry or not entry.get("available") or entry.get("error"):
+    if not entry or not isinstance(entry, dict) or not entry.get("available") or entry.get("error"):
         print(f"WARN: check-usage의 {provider_key!r} provider 사용 불가 — used_pct null 기록", file=sys.stderr)
         return None, None
     return entry.get("fiveHourPercent"), entry.get("sevenDayPercent")
+

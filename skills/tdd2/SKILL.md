@@ -190,20 +190,24 @@ failure has an unambiguous line between what's live and what isn't.
    작업 컨텍스트 안에서 카운터(실패 횟수)를 증가시킨다(파일 I/O 없음).
    pytest/회귀 스크립트는 계측하지 않는다.
 
-   **cost_details 계측 — "before mvp"**: 위 `issue-<#N>__agent-stats.json`
-   최초 생성 직후, `tools/log-cost-<base명>.sh <repo-path> issue-<#N>
-   "before mvp"`를 호출한다(Windows는 `.bat`/`.ps1` 동일 인자 — pydantic이
-   필요해 항상 `uv run`을 거치는 얇은 wrapper이며 셋 다 같은
-   `tools/log-cost-<base명>.py`를 감싼다). `<base명>`은 **바로 위
-   `coders`에 쓴 것과 정확히 동일한 값**이어야 한다 — 이 실행 세션
-   자신을 가리키는 값을 새로 판단하지 않고, 방금 `coders.<base명>` 키를
-   쓸 때 이미 확정한 값을 그대로 재사용한다. 이 값이 실제로 이 세션의
-   모델과 다르면(예: 잘못된 wrapper 이름을 그대로 베낌) 이후 모든
-   cost_details 항목이 오염되므로, 확신이 없으면 추측해서 채우지 말고
-   멈춰서 확인한다. 이 스크립트는 자기완결적으로 5시간/7일 used_pct를
-   조회해(조회 불가 provider는 null) `cost_details`에 이벤트를
-   append한다 — 실패해도 mvp 진행 자체를 막지 않는다(계측은 감사
-   목적이지 게이트가 아님).
+    **cost_details 계측 — "before mvp"**: 위 `issue-<#N>__agent-stats.json`
+    최초 생성 직후, `tools/log-cost-<base명>.sh <repo-path> issue-<#N>
+    "before mvp"`를 호출한다(Windows는 `.bat`/`.ps1` 동일 인자 — pydantic이
+    필요해 항상 `uv run`을 거치는 얇은 wrapper이며 셋 다 같은
+    `tools/log-cost-<base명>.py`를 감싼다). **스크립트 탐색 우선순위**: 대상
+    프로젝트의 `<repo-path>/tools/log-cost-<base명>.sh`가 존재하면 이를 우선 호출하고,
+    없을 경우 플러그인 패키지 번들(`../tools/log-cost-<base명>.sh` 또는
+    `~/.gemini/config/plugins/tayaee-autosdlc/tools/log-cost-<base명>.sh`)을
+    폴백 탐색하여 호출한다. `<base명>`은 **바로 위
+    `coders`에 쓴 것과 정확히 동일한 값**이어야 한다 — 이 실행 세션
+    자신을 가리키는 값을 새로 판단하지 않고, 방금 `coders.<base명>` 키를
+    쓸 때 이미 확정한 값을 그대로 재사용한다. 이 값이 실제로 이 세션의
+    모델과 다르면(예: 잘못된 wrapper 이름을 그대로 베낌) 이후 모든
+    cost_details 항목이 오염되므로, 확신이 없으면 추측해서 채우지 말고
+    멈춰서 확인한다. 이 스크립트는 자기완결적으로 5시간/7일 used_pct를
+    조회해(조회 불가 provider는 null) `cost_details`에 이벤트를
+    append한다 — 실패해도 mvp 진행 자체를 막지 않는다(계측은 감사
+    목적이지 게이트가 아님).
 6. `uv run python -m compileall . -q`. Failure → fix code, restart from 5.
 7. `run-unit-tests` (full suite) — same project-or-default resolution
    as step 5. Failure → fix code, restart from 5.
