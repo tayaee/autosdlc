@@ -19,7 +19,7 @@ installed=0
 skipped=0
 missing=0
 
-for skill in aacpd autotdd autotddreviewfix tdd2; do
+for skill in aacp aacpd autotdd autotddreviewfix tdd2; do
     src="$SRC_DIR/$skill"
     dst="$DST_DIR/$skill"
 

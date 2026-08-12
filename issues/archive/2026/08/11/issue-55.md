@@ -57,4 +57,13 @@ archive / add / commit / push 의 4 단계를 수행하고 마지막에 deploy �
 
 ## 구현 결과
 
-(작업 후 기입)
+- **구현 완료 일시**: 2026-08-11T20:52:06-04:00
+- **수정/신규 파일**:
+  - `skills/aacp/SKILL.md` 신규 (4단계만 묘사, deploy 안내 분리)
+  - `skills/aacp/aacp.sh`, `aacp.bat`, `aacp.ps1` 신규 (skills/aacpd/ 와 byte-identical 사본)
+  - `skills/aacpd/aacp.sh` -h/--help 및 NO_DEPLOY (4단계 스킵) 지원 추가
+  - `install.sh` aacp skill 추가
+  - `regression-tests/verify-issue-55.sh` 신규 작성
+- **계획 대비 차이점**: 없음
+- **검증 결과**: `verify-issue-55.sh`, `run-ruff`, `run-pyright`, `run-unit-tests`, `run-regression-tests`, `run-pyright-full` 모두 성공 (PASS)
+
