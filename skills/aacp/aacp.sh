@@ -119,10 +119,10 @@ BIN_DIR="$AUTOSDLC_BIN_DIR"
 run_check() {
   local name="$1"
   if [ -x "./${name}.sh" ]; then
-    echo "--- ${name} (project script) ---"
+    [ "${AACP_VERBOSE:-0}" = "1" ] && echo "--- ${name} (project script) ---"
     "./${name}.sh"
   else
-    echo "--- ${name} (aacpd bin default) ---"
+    [ "${AACP_VERBOSE:-0}" = "1" ] && echo "--- ${name} (aacpd bin default) ---"
     bash "$BIN_DIR/${name}.sh"
   fi
 }

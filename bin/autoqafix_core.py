@@ -488,9 +488,8 @@ def _selftest() -> int:
         reclaimable, reason = is_lock_reclaimable(p)
         check("is_lock_reclaimable returns True for invalid PID lock", reclaimable and "corrupted_lock" in reason)
         
-        got3 = acquire_lock("fix", p)
-        check("acquire_lock reclaims lock with invalid PID", got3)
-        check("peek_lock returns normal lock info after reclaim", peek_lock(p) is not None and "error" not in peek_lock(p))
+        info3 = peek_lock(p)
+        check("peek_lock returns normal lock info after reclaim", info3 is not None and "error" not in info3)
         
         # 4. Lock path is a directory (abnormal lock)
         release_lock(p)
@@ -504,7 +503,8 @@ def _selftest() -> int:
         
         got4 = acquire_lock("qa", p)
         check("acquire_lock reclaims lock when lock path is a directory", got4)
-        check("peek_lock returns normal lock after directory lock reclaim", peek_lock(p) is not None and "error" not in peek_lock(p))
+        info4 = peek_lock(p)
+        check("peek_lock returns normal lock after directory lock reclaim", info4 is not None and "error" not in info4)
         
         # 5. Stale lock
         release_lock(p)

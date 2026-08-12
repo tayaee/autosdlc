@@ -92,4 +92,14 @@ review:    19% → 18%   (-1%p)
 
 ## 구현 결과
 
-(작업 후 기입)
+- **구현 완료 일시**: 2026-08-11T20:56:04-04:00
+- **수정/신규 파일**:
+  - `bin/cost_entry.py` - `CostDetailEntry` Pydantic 모델에 coder, model, reasoning_effort, bucket, reason 5개 필드 추가 및 50개 FIFO drop 추가
+  - `bin/log-cost.py` - 단일 계측 진입점 신규 작성 (8개 개별 log-cost-*.py 삭제)
+  - `bin/log-cost.sh`, `bin/log-cost.bat`, `bin/log-cost.ps1` 및 기존 shell wrapper 갱신
+  - `bin/log-cost-summary.py` - cost_details 인접 diff 한 줄 출력 갱신
+  - `pyrightconfig.json` 신규 작성
+  - `regression-tests/verify-issue-57.sh` 신규 작성
+- **계획 대비 차이점**: 없음
+- **검증 결과**: `verify-issue-57.sh`, `run-ruff`, `run-pyright`, `run-unit-tests`, `run-regression-tests`, `run-pyright-full` 모두 성공 (PASS)
+

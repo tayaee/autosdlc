@@ -3,14 +3,7 @@
 # requires-python = ">=3.12"
 # dependencies = []
 # ///
-"""log-cost-summary — cost_details를 스캔해 모델별 cost_summary를 계산.
-
-aacpd(aacp.sh)가 `issue-N__TYPE-agent-stats.json`을 archive 디렉터리로
-git mv하기 직전, `agent-stats-archive.py`보다 먼저 호출한다 — 이 시점엔
-해당 이슈의 모든 LLM 작업(mvp/review/refix-plan/refix)이 이미 끝나 있다.
-모델별로 five_hour_used_pct/seven_day_used_pct 합을 구해 cost_summary에
-기록한다: null 값은 합산에서 제외하고, 어떤 모델의 특정 지표가 전부
-null이면 합산 결과도 null로 남긴다(조회 불가였다는 사실 자체를 보존).
+"""log-cost-summary — cost_details를 스캔해 단계별 cost_summary(pct diff)를 계산.
 
 사용법:
     log-cost-summary.py [--dryrun] <repo-path> <issue-N|autofix-N>
@@ -40,28 +33,40 @@ def find_stats_file(repo: Path, target: str) -> Path:
     return path
 
 
-def _sum_or_null(values: list) -> float | None:
-    present = [v for v in values if v is not None]
-    if not present:
-        return None
-    return sum(present)
-
-
-def compute_cost_summary(cost_details: list) -> dict:
+def compute_cost_summary(cost_details: list[dict]) -> tuple[dict, str]:
+    parts = []
     by_model: dict[str, dict[str, list]] = {}
+
     for entry in cost_details:
         model = entry.get("model", "unknown")
         bucket = by_model.setdefault(model, {"five_hour": [], "seven_day": []})
         bucket["five_hour"].append(entry.get("five_hour_used_pct"))
         bucket["seven_day"].append(entry.get("seven_day_used_pct"))
 
-    return {
-        model: {
-            "five_hour_sum": _sum_or_null(v["five_hour"]),
-            "seven_day_sum": _sum_or_null(v["seven_day"]),
-        }
-        for model, v in by_model.items()
+    for i in range(1, len(cost_details)):
+        prev = cost_details[i - 1]
+        curr = cost_details[i]
+        p_pct = prev.get("five_hour_used_pct")
+        c_pct = curr.get("five_hour_used_pct")
+        desc = curr.get("description", f"step{i}")
+        if p_pct is not None and c_pct is not None:
+            diff = round(c_pct - p_pct)
+            parts.append(f"{desc} {diff:+.0f}%p ({p_pct:.0f}→{c_pct:.0f})")
+
+    summary_str = "cost_summary: " + (", ".join(parts) if parts else "(no diffs)")
+
+    summary_data = {
+        "summary_text": summary_str,
+        "by_model": {
+            model: {
+                "five_hour_sum": sum(v for v in data["five_hour"] if v is not None) if any(v is not None for v in data["five_hour"]) else None,
+                "seven_day_sum": sum(v for v in data["seven_day"] if v is not None) if any(v is not None for v in data["seven_day"]) else None,
+            }
+            for model, data in by_model.items()
+        },
     }
+
+    return summary_data, summary_str
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -86,15 +91,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {path} 객체 아님", file=sys.stderr)
         return 1
 
-    cost_summary = compute_cost_summary(data.get("cost_details", []))
+    cost_summary_data, summary_str = compute_cost_summary(data.get("cost_details", []))
 
     prefix = "[dryrun] " if dryrun else ""
     if not dryrun:
-        data["cost_summary"] = cost_summary
+        data["cost_summary"] = cost_summary_data
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    print(f"{prefix}{path}")
-    print(json.dumps(cost_summary, ensure_ascii=False, indent=2))
+    print(f"{prefix}{summary_str}")
     return 0
 
 
