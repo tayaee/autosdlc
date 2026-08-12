@@ -84,36 +84,26 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    path = repo / "issues" / f"{stream}-{n}__agent-stats.json"
-    if not path.is_file():
-        now_str = format_iso8601(datetime.now().astimezone())
-        data = {
-            "issue": int(n),
-            "started": now_str,
-            "coders": {"unknown": {"model": "unknown"}},
-            "cost_details": [],
-        }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    else:
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict):
-                data = {
-                    "issue": int(n),
-                    "started": format_iso8601(datetime.now().astimezone()),
-                    "coders": {"unknown": {"model": "unknown"}},
-                    "cost_details": [],
-                }
-        except Exception:  # noqa: BLE001
-            data = {
-                "issue": int(n),
-                "started": format_iso8601(datetime.now().astimezone()),
-                "coders": {"unknown": {"model": "unknown"}},
-                "cost_details": [],
-            }
+    try:
+        path = find_stats_file(repo, stream, n)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
-    started_raw = data.get("started") or format_iso8601(datetime.now().astimezone())
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        print(f"ERROR: {path} 파싱 불가 ({exc})", file=sys.stderr)
+        return 1
+
+    if not isinstance(data, dict):
+        print(f"ERROR: {path} 객체 아님", file=sys.stderr)
+        return 1
+
+    started_raw = data.get("started")
+    if not isinstance(started_raw, str):
+        print(f"ERROR: {path}에 started 필드가 없음", file=sys.stderr)
+        return 1
 
     try:
         started = parse_iso8601(started_raw)
