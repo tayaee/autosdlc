@@ -27,4 +27,4 @@ ensure_uv() {
 ensure_uv
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec python3 "$SCRIPT_DIR/log-cost.py" --coder "claude-via-gemini" "$@"
+exec uv -q run "$SCRIPT_DIR/log-cost.py" --coder "claude-via-gemini" "$@"

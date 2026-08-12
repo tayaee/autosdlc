@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.12"
-# dependencies = []
+# dependencies = ["pydantic"]
 # ///
 """log-cost-summary — cost_details를 스캔해 단계별 cost_summary(pct diff)를 계산.
 

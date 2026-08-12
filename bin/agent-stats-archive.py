@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.12"
-# dependencies = []
+# dependencies = ["pydantic"]
 # ///
 """agent-stats-archive — issue-N__agent-stats.json에 archived/duration을 채운다 (issue-47, v3 마커 개명).
 
