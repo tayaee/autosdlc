@@ -18,10 +18,10 @@ entry = CostDetailEntry(
     reason='unsupported_provider',
     five_hour_used_pct=None,
     seven_day_used_pct=None,
-    ts_description='test'
+    ts_description='implement-start'
 )
 assert entry.script_id == 'minimax'
-assert entry.ts_description == 'test'
+assert entry.ts_description == 'implement-start'
 assert entry.reason == 'unsupported_provider'
 "
 
@@ -39,7 +39,7 @@ cat > "$TMP_REPO/issues/issue-999__agent-stats.json" <<'EOF'
 EOF
 
 # 5. Silent pass check: stdout and stderr 0 byte when not in verbose mode
-LOG_OUT=$(python3 bin/log-cost.py "$TMP_REPO" issue-999 "before mvp" 2>&1)
+LOG_OUT=$(python3 bin/log-cost.py "$TMP_REPO" issue-999 "implement-start" 2>&1)
 if [ -n "$LOG_OUT" ]; then
     echo "FAIL: log-cost.py not silent by default: $LOG_OUT"
     exit 1
@@ -55,29 +55,38 @@ data = json.loads(p.read_text())
 details = data.get('cost_details', [])
 assert len(details) == 1
 e = details[0]
-assert e['ts_description'] == 'before mvp'
+assert e['ts_description'] == 'implement-start'
 assert 'script_id' in e
 assert 'reason' in e
 "
 
-# 4. log-cost-summary.py diff test
+# 4. log-cost-summary.py net diff & sum test (user requirement: 65 -> 68 = 3.0)
 cat > "$TMP_REPO/issues/issue-999__agent-stats.json" <<'EOF'
 {
   "issue": 999,
   "started": "2026-08-11T20:00:00-04:00",
   "cost_details": [
-    {"ts": "2026-08-11T20:00:00-04:00", "script_id": "sonnet", "model": "Sonnet", "five_hour_used_pct": 37.0, "seven_day_used_pct": null, "ts_description": "start"},
-    {"ts": "2026-08-11T20:05:00-04:00", "script_id": "sonnet", "model": "Sonnet", "five_hour_used_pct": 22.0, "seven_day_used_pct": null, "ts_description": "mvp"},
-    {"ts": "2026-08-11T20:10:00-04:00", "script_id": "sonnet", "model": "Sonnet", "five_hour_used_pct": 21.0, "seven_day_used_pct": null, "ts_description": "step2"},
-    {"ts": "2026-08-11T20:15:00-04:00", "script_id": "sonnet", "model": "Sonnet", "five_hour_used_pct": 19.0, "seven_day_used_pct": null, "ts_description": "step3"}
+    {"ts": "2026-08-11T22:06:53-04:00", "script_id": "minimax", "model": "minimax", "five_hour_used_pct": 65.0, "seven_day_used_pct": 39.0, "ts_description": "implement-start"},
+    {"ts": "2026-08-11T22:12:09-04:00", "script_id": "minimax", "model": "minimax", "five_hour_used_pct": 68.0, "seven_day_used_pct": 39.0, "ts_description": "implement-end"}
   ]
 }
 EOF
 
 SUMMARY_OUT=$(python3 bin/log-cost-summary.py "$TMP_REPO" issue-999)
-if ! echo "$SUMMARY_OUT" | grep -q "cost_summary: mvp -15%p (37→22), step2 -1%p (22→21), step3 -2%p (21→19)"; then
-    echo "FAIL: log-cost-summary.py unexpected output: $SUMMARY_OUT"
+if ! echo "$SUMMARY_OUT" | grep -q "cost_summary: implement-end +3%p (65→68)"; then
+    echo "FAIL: log-cost-summary.py unexpected text output: $SUMMARY_OUT"
     exit 1
 fi
+
+python3 -c "
+import json
+from pathlib import Path
+p = Path('$TMP_REPO/issues/issue-999__agent-stats.json')
+data = json.loads(p.read_text())
+cs = data.get('cost_summary', {})
+bm = cs.get('by_model', {}).get('minimax', {})
+assert bm.get('five_hour_sum') == 3.0, f'Expected 3.0, got {bm.get(\"five_hour_sum\")}'
+assert bm.get('seven_day_sum') == 0.0, f'Expected 0.0, got {bm.get(\"seven_day_sum\")}'
+"
 
 echo "✓ Issue-57 verification passed"

@@ -153,7 +153,7 @@ failure has an unambiguous line between what's live and what isn't.
      "coders": { "<base명>": { "model": "<버전 포함 모델명>" } }
    }
    ```
-   파일 생성 직후, `log-cost.sh <repo-path> issue-<#N> "before mvp"` (또는 `log-cost.py --coder <base명> <repo-path> issue-<#N> "before mvp"`)를 호출하여 시작 계측 스냅샷을 남긴다.
+156.    파일 생성 직후, `log-cost.sh <repo-path> issue-<#N> "implement-start"` (또는 `log-cost.py --script-id <base명> <repo-path> issue-<#N> "implement-start"`)를 호출하여 시작 계측 스냅샷을 남긴다.
 
 3. Implement via red→green→refactor: write the failing test first,
    then only enough code to pass it, at pre-agreed seams (the public
@@ -175,23 +175,17 @@ failure has an unambiguous line between what's live and what isn't.
    fine to include. `chmod +x` it. (This file's existence is also what
    the no-arg resume-detection above looks for.)
 6. **Python projects only** (repo has `pyproject.toml`): run `run-ruff`
-   and `run-pyright`. For each, prefer the project's own
-   `./run-<name>.sh` if present; otherwise use this package's bundled
+   and `run-pyright`. (각 실행 전후 `log-cost.sh`를 호출하여 `ruff-start`, `ruff-end`, `pyright-start`, `pyright-end` 스냅샷을 남긴다. 실패 후 수정·재실행 시 시도마다 start/end를 기록한다).
+   For each, prefer the project's own `./run-<name>.sh` if present; otherwise use this package's bundled
    default at `../bin/run-<name>.sh` (relative to this skill
    directory — invoke with `bash`, CWD at the repo root; never copy it
    into the project). `run-pyright` is scoped to `src/`, fast.
    Failure → fix code, restart from 6.
    (ruff/pyright 실패 횟수는 세션 카운터로 기록한다).
 7. **Python projects only**: `uv run python -m compileall . -q`. Failure → fix code, restart from 6.
-8. `run-unit-tests` (full suite if script exists) — same project-or-default resolution
-   as step 6. Failure → fix code, restart from 6.
-9. Run `./regression-tests/verify-issue-#.sh` directly (this is the
-   issue-specific script from step 5, not the `run-regression-tests`
-   wrapper). Exit 0 → continue. Non-zero → fix implementation, restart
-   from 6.
-10. `run-regression-tests` — same project-or-default resolution as step
-    6; runs every *other* existing `regression-tests/verify-issue-*.sh`
-    in order.
+8. `run-unit-tests` (full suite if script exists) — 실행 전후 `log-cost.sh`로 `pytest-start`, `pytest-end` 스냅샷 기록. resolution은 step 6과 동일. Failure → fix code, restart from 6.
+9. Run `./regression-tests/verify-issue-#.sh` directly (실행 전후 `log-cost.sh`로 `verify-script-start`, `verify-script-end` 스냅샷 기록). Exit 0 → continue. Non-zero → fix implementation, restart from 6.
+10. `run-regression-tests` — 실행 전후 `log-cost.sh`로 `regression-start`, `regression-end` 스냅샷 기록. resolution은 step 6과 동일; runs every *other* existing `regression-tests/verify-issue-*.sh` in order.
     - All pass → continue.
     - A failure is either: (a) a real bug in the new code — fix and
       restart from 6; or (b) that script's own criteria are now
@@ -200,9 +194,7 @@ failure has an unambiguous line between what's live and what isn't.
       `regression-tests/verify-issue-<old#>.conflict-with-<this#>.md`
       documenting what changed and why (a human reviews and resolves
       that file later; stage it with the rest).
-    - **Python projects only**: also run `run-pyright-full` (whole
-      project, no path restriction — slower than step 6's `run-pyright`)
-      before moving on. Same failure handling as above.
+    - **Python projects only**: also run `run-pyright-full` (실행 전후 `log-cost.sh`로 `pyright-full-start`, `pyright-full-end` 스냅샷 기록) before moving on. Same failure handling as above.
 11. **UI verification** — triggered when the issue has a `### UI 검증`
     section, **or** when the issue is UI-touching per the test defined
     in step 1 (extension match *plus* user-visible browser behaviour —
@@ -261,8 +253,8 @@ failure has an unambiguous line between what's live and what isn't.
     - `loc_added`는 `<시작HEAD>..HEAD` 전 파일의 `git diff --numstat` added 합 (삭제·바이너리 제외).
     - `ruff` / `pyright` 실패 횟수는 Step 6에서 세션이 카운트한 값이며, 해당 도구가 프로젝트 미지원(pyproject.toml 없음 등)으로 실행 안 된 경우 `null`로 기록한다.
 
-    **cost_details 계측 — "after mvp"**: 위 `coders.<base명>.mvp` 채움
-    직후, `log-cost.sh <repo-path> issue-<#N> "after mvp"` (또는 `log-cost.py --coder <base명> <repo-path> issue-<#N> "after mvp"`)를 호출한다.
+    **cost_details 계측 — "implement-end"**: 위 `coders.<base명>.mvp` 채움
+    직후, `log-cost.sh <repo-path> issue-<#N> "implement-end"` (또는 `log-cost.py --script-id <base명> <repo-path> issue-<#N> "implement-end"`)를 호출한다.
 13. `git add` everything: migration files, code, the updated issue
     file, `issues/issue-<#N>__agent-stats.json`, any `.conflict-with-` notes.
 14. **Stop.** Report what was implemented and that it's ready for

@@ -50,20 +50,28 @@ def compute_cost_summary(cost_details: list[dict]) -> tuple[dict, str]:
         c_pct = curr.get("five_hour_used_pct")
         desc = curr.get("ts_description") or curr.get("description", f"step{i}")
         if p_pct is not None and c_pct is not None:
-            diff = round(c_pct - p_pct)
-            parts.append(f"{desc} {diff:+.0f}%p ({p_pct:.0f}→{c_pct:.0f})")
+            diff = round(c_pct - p_pct, 1)
+            p_str = f"{p_pct:.1f}".rstrip("0").rstrip(".")
+            c_str = f"{c_pct:.1f}".rstrip("0").rstrip(".")
+            diff_str = f"{diff:+.1f}".rstrip("0").rstrip(".")
+            parts.append(f"{desc} {diff_str}%p ({p_str}→{c_str})")
 
     summary_str = "cost_summary: " + (", ".join(parts) if parts else "(no diffs)")
 
+    by_model_summary = {}
+    for model, data in by_model.items():
+        five_h = [v for v in data["five_hour"] if v is not None]
+        seven_d = [v for v in data["seven_day"] if v is not None]
+        five_h_net = round(five_h[-1] - five_h[0], 1) if len(five_h) >= 1 else None
+        seven_d_net = round(seven_d[-1] - seven_d[0], 1) if len(seven_d) >= 1 else None
+        by_model_summary[model] = {
+            "five_hour_sum": five_h_net,
+            "seven_day_sum": seven_d_net,
+        }
+
     summary_data = {
         "summary_text": summary_str,
-        "by_model": {
-            model: {
-                "five_hour_sum": sum(v for v in data["five_hour"] if v is not None) if any(v is not None for v in data["five_hour"]) else None,
-                "seven_day_sum": sum(v for v in data["seven_day"] if v is not None) if any(v is not None for v in data["seven_day"]) else None,
-            }
-            for model, data in by_model.items()
-        },
+        "by_model": by_model_summary,
     }
 
     return summary_data, summary_str

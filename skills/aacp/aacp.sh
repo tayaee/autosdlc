@@ -185,6 +185,9 @@ for tf in "${TYPE_FILES[@]}"; do
   [ -e "$tf" ] || continue
   case "$tf" in
     *__agent-stats.json)
+      if [ -f "$BIN_DIR/log-cost.sh" ]; then
+        bash "$BIN_DIR/log-cost.sh" "$REPO_ROOT" "${STREAM}-${N}" "archive-start"
+      fi
       if [ -f "$BIN_DIR/log-cost-summary.py" ]; then
         uv run "$BIN_DIR/log-cost-summary.py" "$REPO_ROOT" "${STREAM}-${N}"
       elif [ -f "$REPO_ROOT/bin/log-cost-summary.py" ]; then
