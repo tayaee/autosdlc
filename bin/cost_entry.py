@@ -52,6 +52,66 @@ def now_iso8601() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+def resolve_script_id_and_model(
+    repo: Path,
+    target: str,
+    cli_script_id: str | None = None,
+    cli_model: str | None = None,
+) -> tuple[str, str]:
+    """CLI 인자, agent-stats.json의 coders, 또는 환경변수를 통해 script_id와 model을 자동 추론."""
+    env_coder = os.environ.get("CODER") or os.environ.get("SCRIPT_ID") or os.environ.get("AUTOSDLC_CODER")
+    env_model = os.environ.get("MODEL") or os.environ.get("MODEL_NAME") or os.environ.get("CLAUDE_CODE_MODEL")
+
+    stats_script_id = None
+    stats_model = None
+    try:
+        stream, n = parse_stream_id(target)
+        stats_file = repo / "issues" / f"{stream}-{n}__agent-stats.json"
+        if stats_file.is_file():
+            data = json.loads(stats_file.read_text(encoding="utf-8"))
+            coders = data.get("coders", {})
+            if isinstance(coders, dict) and coders:
+                keys = [k for k in coders.keys() if k != "unknown"]
+                if not keys:
+                    keys = list(coders.keys())
+                if keys:
+                    last_key = keys[-1]
+                    stats_script_id = last_key
+                    stats_model = coders[last_key].get("model")
+    except Exception:  # noqa: BLE001, S110
+        pass
+
+    cli_is_default_script = not cli_script_id or cli_script_id in ("auto", "default", "sonnet")
+    cli_is_default_model = not cli_model or cli_model in ("auto", "default", "Claude Sonnet 3.6")
+
+    if not cli_is_default_script and cli_script_id:
+        final_script_id = cli_script_id
+    elif stats_script_id:
+        final_script_id = stats_script_id
+    elif env_coder:
+        final_script_id = env_coder
+    else:
+        final_script_id = cli_script_id or "sonnet"
+
+    if not cli_is_default_model and cli_model:
+        final_model = cli_model
+    elif stats_model:
+        final_model = stats_model
+    elif env_model:
+        final_model = env_model
+    else:
+        if final_script_id == "minimax":
+            final_model = "MiniMax-M3"
+        elif final_script_id in ("claude-via-gemini", "antigravity-claude"):
+            final_model = "Claude Sonnet 3.6 (via Gemini)"
+        elif final_script_id in ("gemini", "antigravity-gemini"):
+            final_model = "Gemini Pro"
+        else:
+            final_model = cli_model or "Claude Sonnet 3.6"
+
+    return final_script_id, final_model
+
+
 def append_cost_detail(
     repo: Path,
     target: str,
