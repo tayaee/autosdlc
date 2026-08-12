@@ -145,7 +145,7 @@ def _query_antigravity_data() -> dict | None:
         except Exception:  # noqa: BLE001, S110
             pass
 
-        for port in sorted(list(set(ports))):
+        for port in sorted(set(ports)):
             url = f"http://127.0.0.1:{port}/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary"
             req = urllib.request.Request(
                 url, data=b"{}", headers={"Content-Type": "application/json"}, method="POST"
