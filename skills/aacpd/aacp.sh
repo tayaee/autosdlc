@@ -89,10 +89,16 @@ ISSUE_BASENAME=$(basename "$ISSUE_FILE")
 # 0. Python-project verification gate. Detected via pyproject.toml at the
 # repo root. For each check, prefer the project's own ./run-<name>.sh if it
 # exists (and is executable); otherwise fall back to this skill's bundled
-# default in defaults/ (never copied into the project — see SKILL.md).
+# default in bin/ (never copied into the project — see SKILL.md).
 # Runs before any git mutation, so a failure here leaves the repo untouched.
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEFAULTS_DIR="$SKILL_DIR/defaults"
+# autosdlc 의 모든 부속 스크립트는 autosdlc/bin/ 한 곳에 둔다 (issue-53).
+# 사용자 install 위치는 `~/.claude/bin/` 이 default — 환경변수
+# AUTOSDLC_BIN_DIR 로 명시 override 가능. aacp.sh 가 autosdlc repo 안에서
+# 직접 실행되는 dev 환경에서는 AUTOSDLC_BIN_DIR 을 그 repo 의 bin/ 으로
+# 잡으면 된다.
+AUTOSDLC_BIN_DIR="${AUTOSDLC_BIN_DIR:-$HOME/.claude/bin}"
+BIN_DIR="$AUTOSDLC_BIN_DIR"
 
 run_check() {
   local name="$1"
@@ -100,8 +106,8 @@ run_check() {
     echo "--- ${name} (project script) ---"
     "./${name}.sh"
   else
-    echo "--- ${name} (aacpd default) ---"
-    bash "$DEFAULTS_DIR/${name}.sh"
+    echo "--- ${name} (aacpd bin default) ---"
+    bash "$BIN_DIR/${name}.sh"
   fi
 }
 
@@ -141,10 +147,10 @@ for tf in "${TYPE_FILES[@]}"; do
   [ -e "$tf" ] || continue
   case "$tf" in
     *__agent-stats.json)
-      if [ -f "$REPO_ROOT/tools/log-cost-summary.py" ]; then
-        uv run "$REPO_ROOT/tools/log-cost-summary.py" "$REPO_ROOT" "${STREAM}-${N}"
+      if [ -f "$REPO_ROOT/bin/log-cost-summary.py" ]; then
+        uv run "$REPO_ROOT/bin/log-cost-summary.py" "$REPO_ROOT" "${STREAM}-${N}"
       fi
-      uv run "$DEFAULTS_DIR/agent-stats-archive.py" "$REPO_ROOT" "${STREAM}-${N}"
+      uv run "$BIN_DIR/agent-stats-archive.py" "$REPO_ROOT" "${STREAM}-${N}"
       ;;
   esac
   git mv "$tf" "$ARCHIVE_DIR/$(basename "$tf")"

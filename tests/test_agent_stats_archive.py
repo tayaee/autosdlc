@@ -14,7 +14,7 @@ from pathlib import Path
 
 SCRIPT = (
     Path(__file__).resolve().parent.parent
-    / ".claude" / "skills" / "aacpd" / "defaults" / "agent-stats-archive.py"
+    / "bin" / "agent-stats-archive.py"
 )
 
 _DUR_RE = re.compile(r"^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$")

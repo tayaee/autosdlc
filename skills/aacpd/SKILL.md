@@ -28,10 +28,10 @@ Two issue streams are handled:
   출력 파일(`issue-N__code-review-by-*.md`, `issue-N__refix-plan.md`,
   `issue-N__agent-stats.json`)도 같은 커밋에서 함께 아카이브한다 —
   별도 호출 불요. `agent-stats.json`은 이동 직전, 대상 repo에
-  `tools/log-cost-summary.py`가 있으면(없으면 스킵) 먼저 그걸 호출해
+  `bin/log-cost-summary.py`가 있으면(없으면 스킵) 먼저 그걸 호출해
   `cost_details`(issue-50 — mvp/review/refix-plan/refix 4단계 5h/7d
   쿼터 계측 감사 로그)를 모델별로 합산한 `cost_summary`를 채우고, 그
-  다음 `defaults/agent-stats-archive.py`가 `archived`/`duration`
+  다음 `bin/agent-stats-archive.py`가 `archived`/`duration`
   필드를 채운다.
 - **Commit prefix**: `<stream>-<N>: <summary>` (e.g., `issue-22: ...`,
   `autofix-3: ...`).
@@ -130,10 +130,10 @@ hasn't already passed `/tdd2`'s own verification.
 For each of `run-ruff`, `run-pyright`, `run-unit-tests`,
 `run-regression-tests`, `run-pyright-full`: if the target repo has its
 own executable `./run-<name>.sh`, that runs. Otherwise this skill's
-bundled default in `defaults/run-<name>.sh` runs instead — **not**
+bundled default in `bin/run-<name>.sh` runs instead — **not**
 copied into the project, just invoked from the skill directory with
 CWD already set to the repo root. `.bat`/`.ps1` siblings exist in
-`defaults/` for a human on Windows running the equivalent by hand, and
+`bin/ for a human on Windows running the equivalent by hand, and
 `aacp.ps1` resolves `.ps1` project-or-default the same way — but
 each of `aacpd`'s own three entry scripts only ever calls its own
 platform's flavor.

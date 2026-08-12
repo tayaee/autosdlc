@@ -10,7 +10,7 @@ SKILL_TDD2="$REPO_ROOT/skills/tdd2/SKILL.md"
 SKILL_REVIEW="$REPO_ROOT/skills/autotddreviewfix/SKILL.md"
 SKILL_AACPD="$REPO_ROOT/skills/aacpd/SKILL.md"
 AACP="$REPO_ROOT/skills/aacpd/aacp.sh"
-COST_ENTRY="$REPO_ROOT/tools/cost_entry.py"
+COST_ENTRY="$REPO_ROOT/bin/cost_entry.py"
 
 FAIL=0
 fail() { echo "FAIL: $1" >&2; FAIL=1; }
@@ -38,11 +38,11 @@ not_has() {
 [ -f "$COST_ENTRY" ] && pass "cost_entry.py 존재" || fail "cost_entry.py 부재"
 for base in sonnet opus haiku fable gemini minimax qwen deepseek summary; do
     for ext in py sh bat ps1; do
-        f="$REPO_ROOT/tools/log-cost-$base.$ext"
+        f="$REPO_ROOT/bin/log-cost-$base.$ext"
         [ -f "$f" ] && pass "log-cost-$base.$ext 존재" || fail "log-cost-$base.$ext 부재"
     done
 done
-[ -x "$REPO_ROOT/tools/log-cost-sonnet.sh" ] && pass "log-cost-sonnet.sh 실행 권한 있음" || fail "log-cost-sonnet.sh 실행 권한 없음"
+[ -x "$REPO_ROOT/bin/log-cost-sonnet.sh" ] && pass "log-cost-sonnet.sh 실행 권한 있음" || fail "log-cost-sonnet.sh 실행 권한 없음"
 
 # ----- 2. SKILL.md 훅 문구 -----
 has "$SKILL_TDD2" "before mvp" "tdd2: before mvp 계측 지시"
@@ -67,7 +67,7 @@ not_has "$SKILL_REVIEW" ".py <repo-path>" "autotddreviewfix: 맨 .py 직접 호�
 # base명이 리터럴로 하드코딩(예: log-cost-sonnet.sh처럼 특정 모델명이
 # 파일명에 고정)되어 있으면 안 된다 — 항상 <base명>/<X> 같은 플레이스홀더.
 not_has "$SKILL_TDD2" "log-cost-sonnet.sh" "tdd2: model 식별자 하드코딩(log-cost-sonnet.sh 리터럴) 없음"
-not_has "$SKILL_REVIEW" "tools/log-cost-sonnet.sh <repo-path> issue-<N> \"before" "autotddreviewfix: model 식별자 하드코딩 없음"
+not_has "$SKILL_REVIEW" "bin/log-cost-sonnet.sh <repo-path> issue-<N> \"before" "autotddreviewfix: model 식별자 하드코딩 없음"
 has "$SKILL_TDD2" "정확히 동일한 값" "tdd2: 모델명 정확성(동일 값 재사용) 명시"
 has "$SKILL_REVIEW" "정확히 같은 값" "autotddreviewfix: 모델명 정확성(동일 값 재사용) 명시"
 
@@ -80,11 +80,11 @@ cat > "$T/repo/issues/issue-90__agent-stats.json" <<'EOF'
 {"issue": 90, "started": "2026-07-20T09:00:00-04:00", "coders": {"sonnet": {"model": "claude-sonnet-5"}}}
 EOF
 
-"$REPO_ROOT/tools/log-cost-sonnet.sh" "$T/repo" issue-90 "before mvp" >/tmp/verify50-sonnet.out 2>&1
+"$REPO_ROOT/bin/log-cost-sonnet.sh" "$T/repo" issue-90 "before mvp" >/tmp/verify50-sonnet.out 2>&1
 RC=$?
 [ $RC -eq 0 ] && pass "log-cost-sonnet.sh: 정상 exit 0" || fail "log-cost-sonnet.sh exit $RC: $(cat /tmp/verify50-sonnet.out)"
 
-"$REPO_ROOT/tools/log-cost-minimax.sh" "$T/repo" issue-90 "before review" >/tmp/verify50-minimax.out 2>&1
+"$REPO_ROOT/bin/log-cost-minimax.sh" "$T/repo" issue-90 "before review" >/tmp/verify50-minimax.out 2>&1
 RC=$?
 [ $RC -eq 0 ] && pass "log-cost-minimax.sh: 정상 exit 0" || fail "log-cost-minimax.sh exit $RC: $(cat /tmp/verify50-minimax.out)"
 
@@ -106,19 +106,19 @@ PYEOF
 
 # --dryrun은 파일을 바꾸지 않는다
 BEFORE_HASH="$(md5sum "$T/repo/issues/issue-90__agent-stats.json" | cut -d' ' -f1)"
-"$REPO_ROOT/tools/log-cost-sonnet.sh" --dryrun "$T/repo" issue-90 "after mvp (dryrun)" >/tmp/verify50-dryrun.out 2>&1
+"$REPO_ROOT/bin/log-cost-sonnet.sh" --dryrun "$T/repo" issue-90 "after mvp (dryrun)" >/tmp/verify50-dryrun.out 2>&1
 AFTER_HASH="$(md5sum "$T/repo/issues/issue-90__agent-stats.json" | cut -d' ' -f1)"
 [ "$BEFORE_HASH" = "$AFTER_HASH" ] && pass "--dryrun: 파일 불변" || fail "--dryrun인데 파일이 변경됨"
 grep -q "dryrun" /tmp/verify50-dryrun.out && pass "--dryrun: 출력에 dryrun 표시" || fail "--dryrun 출력에 표시 없음"
 
 # --dryrun은 대상 파일이 없어도 에러 없이 동작해야 한다 (issue-49에서
 # 사용자가 직접 재현·보고했던 버그의 회귀 방지)
-"$REPO_ROOT/tools/log-cost-haiku.sh" --dryrun "$T/repo" issue-999 "no such file" >/tmp/verify50-dryrun-nofile.out 2>&1
+"$REPO_ROOT/bin/log-cost-haiku.sh" --dryrun "$T/repo" issue-999 "no such file" >/tmp/verify50-dryrun-nofile.out 2>&1
 RC=$?
 [ $RC -eq 0 ] && pass "--dryrun: 대상 파일 없어도 에러 없이 exit 0" || fail "--dryrun인데 파일 부재로 실패함: $(cat /tmp/verify50-dryrun-nofile.out)"
 
 # ----- 4. log-cost-summary.sh — 합산 정확성 -----
-"$REPO_ROOT/tools/log-cost-summary.sh" "$T/repo" issue-90 >/tmp/verify50-summary.out 2>&1
+"$REPO_ROOT/bin/log-cost-summary.sh" "$T/repo" issue-90 >/tmp/verify50-summary.out 2>&1
 RC=$?
 [ $RC -eq 0 ] && pass "log-cost-summary.sh: 정상 exit 0" || fail "log-cost-summary.sh exit $RC: $(cat /tmp/verify50-summary.out)"
 
@@ -142,11 +142,13 @@ trap 'rm -rf "$T" "$T2"' EXIT
   git config user.email "verify50@test.local"
   git config user.name "verify50"
   mkdir -p issues skills/aacpd
-  cp -r "$REPO_ROOT/skills/aacpd/defaults" skills/aacpd/
+  # issue-53 이후: 부속 스크립트는 autosdlc/bin/ 한 곳에 흡수되었다.
+  # aacp.sh 가 부르는 agent-stats-archive.py / run-* / log-cost-* 모두
+  # bin/ 안. test fixture 는 AUTOSDLC_BIN_DIR 로 그 위치를 명시한다.
+  mkdir -p bin
+  cp -r "$REPO_ROOT/bin/." bin/
   cp "$AACP" skills/aacpd/aacp.sh
   chmod +x skills/aacpd/aacp.sh
-  mkdir -p tools
-  cp "$REPO_ROOT/tools/log-cost-summary.py" tools/
 
   cat > issues/issue-96.md <<'EOF'
 # issue-96: verify-50 fixture
@@ -166,7 +168,8 @@ EOF2
   git add -A
   git commit -q -m "init"
 
-  bash skills/aacpd/aacp.sh 96 "verify-50 test" >/tmp/verify50-aacp.out 2>&1
+  # issue-53: aacp.sh 의 BIN_DIR 을 fixture 의 bin/ 으로 override
+  AUTOSDLC_BIN_DIR="$T2/bin" bash skills/aacpd/aacp.sh 96 "verify-50 test" >/tmp/verify50-aacp.out 2>&1
 )
 ARCHIVED_STATS="$(find "$T2/issues/archive" -name "issue-96__agent-stats.json" 2>/dev/null)"
 [ -n "$ARCHIVED_STATS" ] && pass "aacp: agent-stats.json 아카이브됨" || fail "aacp: agent-stats.json 아카이브 안 됨 ($(cat /tmp/verify50-aacp.out 2>/dev/null))"

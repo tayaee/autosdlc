@@ -6,7 +6,7 @@ set -u
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SPEC="$REPO_ROOT/docs/spec/spec-issue-filenames.md"
 SKILL="$REPO_ROOT/.claude/skills/autotddreviewfix/SKILL.md"
-SCRIPT="$REPO_ROOT/tools/derive_fixing_slug.py"
+SCRIPT="$REPO_ROOT/bin/derive_fixing_slug.py"
 TEST="$REPO_ROOT/tests/test_derive_fixing_slug.py"
 
 FAIL=0
@@ -36,7 +36,7 @@ spec_has() { # $1=pattern $2=desc
 }
 
 spec_has "finding-slug" "finding 슬러그 컨셉"
-spec_has "tools/derive_fixing_slug" "helper 참조 (단일 정본)"
+spec_has "bin/derive_fixing_slug" "helper 참조 (단일 정본)"
 spec_has "slug:" "사람 override 헤더 규약"
 spec_has "알파벳 정렬" "다중 작성자 알파벳 정렬"
 spec_has "self" "BY-self 예약값 (관행)"
@@ -55,10 +55,10 @@ skill_has() {
     fi
 }
 
-skill_has "tools/derive_fixing_slug" "helper 호출 명시"
-skill_has "python tools/derive_fixing_slug.py slug" "slug 도출 CLI 호출"
-skill_has "python tools/derive_fixing_slug.py by" "BY 정렬 CLI 호출"
-skill_has "python tools/derive_fixing_slug.py suffix" "suffix CLI 호출"
+skill_has "bin/derive_fixing_slug" "helper 호출 명시"
+skill_has "python bin/derive_fixing_slug.py slug" "slug 도출 CLI 호출"
+skill_has "python bin/derive_fixing_slug.py by" "BY 정렬 CLI 호출"
+skill_has "python bin/derive_fixing_slug.py suffix" "suffix CLI 호출"
 
 # 옛 형식 단독 사용 0건 — helper 호출로 대체됨을 단언
 # 옛 형식: `issues/issue-<신번호>-fixing-<N>.md` 또는 `__STATE-later` 단일 슬러그

@@ -2,13 +2,13 @@
 # verify-issue-44.sh — review-stats 스키마 보강 검증
 # - SKILL.md Step 3-7: model 필드 명세 + unknown 폴백 + 리뷰 파일 첫 줄 참조
 # - SKILL.md Step 3: 중복 finding → 전원 크레딧 규칙
-# - tools/reviewer-scoreboard.py: model 필드가 든 stats JSON도 집계 불변
+# - bin/reviewer-scoreboard.py: model 필드가 든 stats JSON도 집계 불변
 # - pytest: 위 계약을 단위 테스트로 고정
 set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL="$REPO_ROOT/.claude/skills/autotddreviewfix/SKILL.md"
-CLI="$REPO_ROOT/tools/reviewer-scoreboard.py"
+CLI="$REPO_ROOT/bin/reviewer-scoreboard.py"
 
 FAIL=0
 fail() { echo "FAIL: $1" >&2; FAIL=1; }

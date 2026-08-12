@@ -132,7 +132,7 @@ $TypeFiles += Get-ChildItem -Path "issues" -Filter "issue-$IssueNum`__refix-plan
 $TypeFiles += Get-ChildItem -Path "issues" -Filter "issue-$IssueNum`__agent-stats.json" -File -ErrorAction SilentlyContinue
 foreach ($tf in $TypeFiles) {
     if ($tf.Name -like "*__agent-stats.json") {
-        $LogCostSummary = Join-Path $RepoRoot "tools/log-cost-summary.py"
+        $LogCostSummary = Join-Path $RepoRoot "bin/log-cost-summary.py"
         if (Test-Path $LogCostSummary) {
             uv run $LogCostSummary $RepoRoot "$Stream-$N"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

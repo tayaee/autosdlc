@@ -10,7 +10,7 @@ SKILL_TDD2="$REPO_ROOT/.claude/skills/tdd2/SKILL.md"
 GLOBAL_SKILL_REVIEW="$HOME/.claude/skills/autotddreviewfix/SKILL.md"
 GLOBAL_SKILL_TDD2="$HOME/.claude/skills/tdd2/SKILL.md"
 SPEC="$REPO_ROOT/docs/spec/spec-issue-filenames.md"
-CLI="$REPO_ROOT/tools/reviewer-scoreboard.py"
+CLI="$REPO_ROOT/bin/reviewer-scoreboard.py"
 
 FAIL=0
 fail() { echo "FAIL: $1" >&2; FAIL=1; }

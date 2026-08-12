@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-_TOOLS = Path(__file__).resolve().parent.parent / "tools"
+_TOOLS = Path(__file__).resolve().parent.parent / "bin"
 sys.path.insert(0, str(_TOOLS))
 
 SCRIPT = _TOOLS / "derive_fixing_slug.py"

@@ -6,7 +6,7 @@
 set -u
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLI="$REPO_ROOT/tools/reviewer-scoreboard.py"
+CLI="$REPO_ROOT/bin/reviewer-scoreboard.py"
 
 FAIL=0
 fail() { echo "FAIL: $1" >&2; FAIL=1; }

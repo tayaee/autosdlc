@@ -9,8 +9,8 @@ SKILL_TDD2="$REPO_ROOT/.claude/skills/tdd2/SKILL.md"
 SKILL_REVIEW="$REPO_ROOT/.claude/skills/autotddreviewfix/SKILL.md"
 GLOBAL_SKILL_TDD2="$HOME/.claude/skills/tdd2/SKILL.md"
 GLOBAL_SKILL_REVIEW="$HOME/.claude/skills/autotddreviewfix/SKILL.md"
-ARCHIVE_HELPER="$REPO_ROOT/.claude/skills/aacpd/defaults/agent-stats-archive.py"
-CLI="$REPO_ROOT/tools/reviewer-scoreboard.py"
+ARCHIVE_HELPER="$REPO_ROOT/bin/agent-stats-archive.py"
+CLI="$REPO_ROOT/bin/reviewer-scoreboard.py"
 AACP="$REPO_ROOT/.claude/skills/aacpd/aacp.sh"
 
 FAIL=0
@@ -139,7 +139,9 @@ trap 'rm -rf "$T" "$T2"' EXIT
   git config user.email "verify47@test.local"
   git config user.name "verify47"
   mkdir -p issues .claude/skills/aacpd
-  cp -r "$REPO_ROOT/.claude/skills/aacpd/defaults" .claude/skills/aacpd/
+  # issue-53: 모든 부속 스크립트는 autosdlc/bin/ 으로 흡수. fixture 도 bin/ 에서 복사.
+  mkdir -p bin
+  cp -r "$REPO_ROOT/bin/." bin/
   cp "$AACP" .claude/skills/aacpd/aacp.sh
   chmod +x .claude/skills/aacpd/aacp.sh
 
@@ -156,7 +158,7 @@ EOF2
   git add -A
   git commit -q -m "init"
 
-  bash .claude/skills/aacpd/aacp.sh 95 "verify-47 test" >/tmp/verify47-aacp.out 2>&1
+  AUTOSDLC_BIN_DIR="$T2/bin" bash .claude/skills/aacpd/aacp.sh 95 "verify-47 test" >/tmp/verify47-aacp.out 2>&1
 )
 ARCHIVED_STATS="$(find "$T2/issues/archive" -name "issue-95__TYPE-agent-stats.json" 2>/dev/null)"
 ARCHIVED_REVIEW="$(find "$T2/issues/archive" -name "issue-95__TYPE-code-review__BY-self.md" 2>/dev/null)"

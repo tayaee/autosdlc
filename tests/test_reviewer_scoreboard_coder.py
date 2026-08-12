@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "reviewer-scoreboard.py"
+SCRIPT = Path(__file__).resolve().parent.parent / "bin" / "reviewer-scoreboard.py"
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:

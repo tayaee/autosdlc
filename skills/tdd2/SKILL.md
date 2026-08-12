@@ -18,7 +18,7 @@ before starting — see that skill if `tdd` turns out to be missing).
 No script of its own. For the `run-ruff` / `run-pyright` /
 `run-unit-tests` / `run-regression-tests` / `run-pyright-full` checks
 in the procedure below, this skill shares `aacpd`'s resolution
-convention and bundled defaults (`../aacpd/defaults/`, a sibling skill
+convention and bundled defaults (`../bin/`, a sibling skill
 directory — both ship together in this package) rather than
 duplicating them.
 
@@ -165,7 +165,7 @@ failure has an unambiguous line between what's live and what isn't.
 5. **Python projects only** (repo has `pyproject.toml`): run `run-ruff`
    and `run-pyright`. For each, prefer the project's own
    `./run-<name>.sh` if present; otherwise use this package's bundled
-   default at `../aacpd/defaults/run-<name>.sh` (relative to this skill
+   default at `../bin/run-<name>.sh` (relative to this skill
    directory — invoke with `bash`, CWD at the repo root; never copy it
    into the project). `run-pyright` is scoped to `src/`, fast.
    Failure → fix code, restart from 5.
@@ -191,13 +191,13 @@ failure has an unambiguous line between what's live and what isn't.
    pytest/회귀 스크립트는 계측하지 않는다.
 
     **cost_details 계측 — "before mvp"**: 위 `issue-<#N>__agent-stats.json`
-    최초 생성 직후, `tools/log-cost-<base명>.sh <repo-path> issue-<#N>
+    최초 생성 직후, `bin/log-cost-<base명>.sh <repo-path> issue-<#N>
     "before mvp"`를 호출한다(Windows는 `.bat`/`.ps1` 동일 인자 — pydantic이
     필요해 항상 `uv run`을 거치는 얇은 wrapper이며 셋 다 같은
-    `tools/log-cost-<base명>.py`를 감싼다). **스크립트 탐색 우선순위**: 대상
-    프로젝트의 `<repo-path>/tools/log-cost-<base명>.sh`가 존재하면 이를 우선 호출하고,
-    없을 경우 플러그인 패키지 번들(`../tools/log-cost-<base명>.sh` 또는
-    `~/.gemini/config/plugins/tayaee-autosdlc/tools/log-cost-<base명>.sh`)을
+    `bin/log-cost-<base명>.py`를 감싼다). **스크립트 탐색 우선순위**: 대상
+    프로젝트의 `<repo-path>/bin/log-cost-<base명>.sh`가 존재하면 이를 우선 호출하고,
+    없을 경우 플러그인 패키지 번들(`../bin/log-cost-<base명>.sh` 또는
+    `~/.gemini/config/plugins/tayaee-autosdlc/bin/log-cost-<base명>.sh`)을
     폴백 탐색하여 호출한다. `<base명>`은 **바로 위
     `coders`에 쓴 것과 정확히 동일한 값**이어야 한다 — 이 실행 세션
     자신을 가리키는 값을 새로 판단하지 않고, 방금 `coders.<base명>` 키를
@@ -289,7 +289,7 @@ failure has an unambiguous line between what's live and what isn't.
     - `mvp` 섹션만 덮어쓰고 기존 `review_outcome` 섹션이 존재할 경우 보존한다(재실행 케이스).
 
     **cost_details 계측 — "after mvp"**: 위 `coders.<base명>.mvp` 채움
-    직후, `tools/log-cost-<base명>.sh <repo-path> issue-<#N> "after mvp"`를
+    직후, `bin/log-cost-<base명>.sh <repo-path> issue-<#N> "after mvp"`를
     호출한다 — `<base명>`은 Step 5의 "before mvp" 호출과 **정확히 같은
     값**이어야 한다(다시 판단하지 말고 그대로 재사용).
 12. `git add` everything: migration files, code, the updated issue

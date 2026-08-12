@@ -156,7 +156,7 @@ grill 세션 2026-07-12 합의 / v3는 2026-07-18 세션에서 전면 개정 —
 - **finding 슬러그**: agent가 자동 수정하는 티켓(must-fix / tech-debt
   모두)에서 "어떤 finding을 고치는지" 파일명만으로 보이게 하기 위해,
   슬러그는 리뷰 산출물 본문에서 결정적으로 도출된다 (helper
-  `tools/derive_fixing_slug.py`):
+  `bin/derive_fixing_slug.py`):
   - **자동 추출**: 리뷰 산출물 본문에서 `### Finding: <title>` 헤더 첫 매칭
   - **사람 override**: finding 본문에 `slug: <name>` 헤더 한 줄이 있으면
     자동 추출 대신 그 값을 사용(override 우선)
