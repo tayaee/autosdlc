@@ -125,31 +125,27 @@ If not done:
 
 #### 실행
 
-For each undone reviewer, launch (모든 `bin/log-cost-*.sh` 호출은
-Windows에서 `.bat`/`.ps1` 동일 인자로 대체 가능 — pydantic이 필요해
-항상 `uv run`을 거치는 얇은 wrapper이며 셋 다 같은
-`bin/log-cost-*.py`를 감싼다):
+For each undone reviewer, launch (모든 `log-cost.sh` 호출은 Windows에서 `.bat`/`.ps1` 동일 인자로 대체 가능 — `bin/log-cost.py`를 감싼다):
 - **External Reviewers**: For each reviewer `<X>`, before launching call
-  `bin/log-cost-<X>.sh <repo-path> issue-<N> "before review"` — `<X>`
+  `log-cost.sh --coder <X> <repo-path> issue-<N> "before review"` — `<X>`
   자체가 곧 정확한 model 식별자이므로 별도 판단 없이 그대로 쓴다. Then
   launch in parallel:
   ```bash
   /home/user1/git/harness-project/.local/bin/<X>-cli.sh -p "<위 4부 구조로 조립한 프롬프트 — 산출 파일: issues/issue-<N>__code-review-by-<X>.md>"
   ```
   When that reviewer's launch returns, call
-  `bin/log-cost-<X>.sh <repo-path> issue-<N> "after review"`(같은
+  `log-cost.sh --coder <X> <repo-path> issue-<N> "after review"`(같은
   `<X>`). 리뷰어별로 개별 before/after 쌍 — N명이면 `cost_details`에
   2N항목.
 - **Self-Review**: If no reviewers were specified, before launching call
-  `bin/log-cost-<base명>.sh <repo-path> issue-<N> "before review"` —
-  `<base명>`은 **Step 1(tdd2 Step 5)에서 이미 확정된
-  `coders.<base명>` 키와 정확히 같은 값**(오케스트레이팅 세션 자신을
+  `log-cost.sh --coder <base명> <repo-path> issue-<N> "before review"` —
+  `<base명>`은 **Step 1에서 이미 확정된 `coders.<base명>` 키와 정확히 같은 값**(오케스트레이팅 세션 자신을
   가리킴). 새로 판단하지 말고 그 값을 그대로 재사용한다. Then launch a
   subagent in a new context (do not review inline in the same
   conversation) to write: `issues/issue-N__code-review-by-self.md`.
   셀프 리뷰 서브에이전트의 프롬프트에도 위 4부 구조를 동일하게 적용한다 (모델명 첫 줄 기입 포함).
   서브에이전트가 반환하면 같은 `<base명>`으로
-  `bin/log-cost-<base명>.sh <repo-path> issue-<N> "after review"`를
+  `log-cost.sh --coder <base명> <repo-path> issue-<N> "after review"`를
   호출한다.
 
 Failure of one reviewer does NOT stop the others (continue-with-partial). When all parallel launches return, verify each output file exists and is non-empty. Note any failures for step 3.
@@ -158,8 +154,7 @@ Failure of one reviewer does NOT stop the others (continue-with-partial). When a
 
 **Done check**: `issues/issue-N__refix-plan.md` exists and is non-empty.
 
-If not done, first call `bin/log-cost-<base명>.sh <repo-path>
-issue-<N> "before refix-plan"` — `<base명>`은 Step 1/Step 2
+If not done, first call `log-cost.sh --coder <base명> <repo-path> issue-<N> "before refix-plan"` — `<base명>`은 Step 1/Step 2
 self-review와 **정확히 같은 값**(오케스트레이팅 세션 자신, 이 단계는
 외부 wrapper 없이 실행 세션이 직접 수행하므로 Step 2 self-review와
 동일한 base명을 그대로 재사용한다). 그 다음, the execution session
@@ -236,7 +231,7 @@ runs inline, in this order:
    (파일이 하나이므로 별도 read-modify-write가 아니다), 같은
    `issues/issue-N__agent-stats.json`의 `coders.<base명>.review_outcome`을
    채워 넣는다.
-   - 키 `<base명>`은 기존 `coders`의 키(tdd2가 Step 5/11에서 생성한 키)를 그대로 사용하며, 새 coder를 추가하지 않는다.
+   - 키 `<base명>`은 기존 `coders`의 키(tdd2가 생성한 키)를 그대로 사용하며, 새 coder를 추가하지 않는다.
    - `review_outcome` 스키마 (`ts`는 tdd2와 동일한 타임스탬프 규약 —
      로컬 타임존 오프셋 포함, UTC `Z` 금지):
      ```json
@@ -250,7 +245,7 @@ runs inline, in this order:
      ```
    - 만약 리뷰 파일이 하나도 없어 refix-plan 자체를 작성하지 못하는 예외 상황인 경우, `review_outcome.refix_plans_written = 0`과 함께 나머지 수치 필드들을 모두 `0`으로 채워 기록한다.
 9. **cost_details 계측 — "after refix-plan"**: 위 7·8번 write 직후,
-   `bin/log-cost-<base명>.sh <repo-path> issue-<N> "after refix-plan"`을
+   `log-cost.sh --coder <base명> <repo-path> issue-<N> "after refix-plan"`을
    호출한다(이 단계 시작 시 쓴 "before refix-plan"과 정확히 같은
    `<base명>`).
 
@@ -266,7 +261,7 @@ issue (`issue-N__code-review-by-*.md`, `issue-N__refix-plan.md`,
 If not done:
 The execution session runs:
 - **cost_details 계측 — "before refix"**: 파생 이슈 처리를 시작하기 전,
-  `bin/log-cost-<base명>.sh <repo-path> issue-<N> "before refix"`를
+  `log-cost.sh --coder <base명> <repo-path> issue-<N> "before refix"`를
   호출한다(`<base명>`은 이 이슈의 `agent-stats.json`의 `coders` 키 —
   Step 1의 coder와 정확히 동일한 값, 새로 판단하지 않는다). Step 4
   전체를 감싸는 **한 쌍만** 원본 이슈에 남긴다 — 파생 이슈가 여러 개여도
@@ -278,7 +273,7 @@ The execution session runs:
   `__tech-debt-by-*` 파킹 파생 이슈는 **건드리지 않는다** — 사람이
   `__tech-debt-by-<...>` 마커를 파일명에서 지워 승격할 때까지 대기.
 - **cost_details 계측 — "after refix"**: 파생 이슈 처리가 전부 끝난
-  직후, `bin/log-cost-<base명>.sh <repo-path> issue-<N> "after refix"`를
+  직후, `log-cost.sh --coder <base명> <repo-path> issue-<N> "after refix"`를
   호출한다(같은 `<base명>`, "before refix"와 짝을 이룸).
 - 이 이슈의 산출물(code-review들, refix-plan, agent-stats.json)은
   별도로 `git mv`하지 않는다 — 이 이슈에 대해 `aacp`

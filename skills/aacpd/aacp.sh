@@ -108,11 +108,6 @@ ISSUE_BASENAME=$(basename "$ISSUE_FILE")
 # default in bin/ (never copied into the project — see SKILL.md).
 # Runs before any git mutation, so a failure here leaves the repo untouched.
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# autosdlc 의 모든 부속 스크립트는 autosdlc/bin/ 한 곳에 둔다 (issue-53).
-# 사용자 install 위치는 `~/.claude/bin/` 이 default — 환경변수
-# AUTOSDLC_BIN_DIR 로 명시 override 가능. aacp.sh 가 autosdlc repo 안에서
-# 직접 실행되는 dev 환경에서는 AUTOSDLC_BIN_DIR 을 그 repo 의 bin/ 으로
-# 잡으면 된다.
 AUTOSDLC_BIN_DIR="${AUTOSDLC_BIN_DIR:-$HOME/.claude/bin}"
 BIN_DIR="$AUTOSDLC_BIN_DIR"
 
@@ -140,15 +135,10 @@ git add "$ISSUE_FILE"
 # 2. Archive: move to issues/archive/YYYY/MM/DD/ (git mv auto-stages the rename).
 ARCHIVE_DIR="issues/archive/$(date +%Y/%m/%d)"
 mkdir -p "$ARCHIVE_DIR"
-# 파일명은 그대로 보존 (SKILL.md "파일명은 그대로" 규약 — 슬러그 포함).
 git mv "$ISSUE_FILE" "$ARCHIVE_DIR/${ISSUE_BASENAME}"
 
 # 2.5. Archive this issue's output artifacts alongside it (code-review
-# files, refix-plan, agent-stats.json — issue-47, v3 marker rename).
-# Live artifacts only (these globs never reach into issues/archive/).
-# agent-stats.json gets its `archived`/`duration` fields stamped by a
-# dedicated helper *before* the move, since bash has no clean
-# JSON/ISO-8601-duration support.
+# files, refix-plan, agent-stats.json).
 shopt -s nullglob
 TYPE_FILES=(
   issues/"${STREAM}-${N}"__code-review-by-*
@@ -157,16 +147,17 @@ TYPE_FILES=(
 )
 shopt -u nullglob
 for tf in "${TYPE_FILES[@]}"; do
-  # `__refix-plan.md`/`__agent-stats.json` 엔트리는 glob 메타문자가 없는
-  # 리터럴 경로라 nullglob이 적용되지 않는다 — 파일이 실제로 없는 경우
-  # (예: review 사이클 없이 순수 tdd2+aacpd만 거친 이슈)는 여기서 건너뛴다.
   [ -e "$tf" ] || continue
   case "$tf" in
     *__agent-stats.json)
-      if [ -f "$REPO_ROOT/bin/log-cost-summary.py" ]; then
+      if [ -f "$BIN_DIR/log-cost-summary.py" ]; then
+        uv run "$BIN_DIR/log-cost-summary.py" "$REPO_ROOT" "${STREAM}-${N}"
+      elif [ -f "$REPO_ROOT/bin/log-cost-summary.py" ]; then
         uv run "$REPO_ROOT/bin/log-cost-summary.py" "$REPO_ROOT" "${STREAM}-${N}"
       fi
-      uv run "$BIN_DIR/agent-stats-archive.py" "$REPO_ROOT" "${STREAM}-${N}"
+      if [ -f "$BIN_DIR/agent-stats-archive.py" ]; then
+        uv run "$BIN_DIR/agent-stats-archive.py" "$REPO_ROOT" "${STREAM}-${N}"
+      fi
       ;;
   esac
   git mv "$tf" "$ARCHIVE_DIR/$(basename "$tf")"
@@ -184,13 +175,7 @@ git commit -m "$COMMIT_MSG"
 # 5. Push.
 git push
 
-# 6. Deploy — dev only, ever. This is the ONE step this skill does not
-# implement itself: it's each target repo's own responsibility to provide
-# a deploy entry point. Resolution order:
-#   - ./deploy-to-dev.sh exists -> run it with no arguments (already
-#     env-specific, takes no --env flag)
-#   - else ./deploy.sh exists -> run it as `deploy.sh --env dev`
-#   - else -> no deploy script yet; skip (not a failure) and say so.
+# 6. Deploy — dev only, ever.
 DEPLOY_STATUS="no deploy-to-dev.sh or deploy.sh found — deploy skipped"
 if [ "$NO_DEPLOY" = "true" ]; then
   DEPLOY_STATUS="deploy skipped (aacp 4-step mode)"

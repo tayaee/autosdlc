@@ -143,7 +143,19 @@ failure has an unambiguous line between what's live and what isn't.
    informational; under `/autotdd` the pre-loop check installs it
    before this step is ever reached.
 
-2. Implement via red→green→refactor: write the failing test first,
+2. **agent-stats & cost_details 초기화 (모든 프로젝트 필수)**:
+   작업 시작 직후 `git rev-parse HEAD`를 `<시작HEAD>`로 기록한다 (Step 11의 loc_added 산출용).
+   동시에 ISO 8601 타임스탬프(로컬 타임존 오프셋 포함 — 예: `2026-08-11T20:00:00-04:00`, UTC `Z` 금지)를 얻어 `issues/issue-<#N>__agent-stats.json`을 **최초 생성**한다 (파일이 이미 존재하면 `issue`/`started` 보존):
+   ```json
+   {
+     "issue": <이슈번호>,
+     "started": "<ISO8601>",
+     "coders": { "<base명>": { "model": "<버전 포함 모델명>" } }
+   }
+   ```
+   파일 생성 직후, `log-cost.sh <repo-path> issue-<#N> "before mvp"` (또는 `log-cost.py --coder <base명> <repo-path> issue-<#N> "before mvp"`)를 호출하여 시작 계측 스냅샷을 남긴다.
+
+3. Implement via red→green→refactor: write the failing test first,
    then only enough code to pass it, at pre-agreed seams (the public
    boundary you test at — never internals). No implementation-coupled
    tests (mocking internal collaborators, testing private methods), no
@@ -152,84 +164,46 @@ failure has an unambiguous line between what's live and what isn't.
    of truth. Work in vertical slices: one seam, one test, one minimal
    implementation, repeat. Refactoring happens at review time, not
    inside this loop.
-3. **DB DDL changes only**: run `./upgrade_db.sh --env dev`. (qa/prod
+4. **DB DDL changes only**: run `./upgrade_db.sh --env dev`. (qa/prod
    DDL is applied by a human separately — never touch those here.)
-4. Write `regression-tests/verify-issue-#.sh`: mechanical checks for
+5. Write `regression-tests/verify-issue-#.sh`: mechanical checks for
    *this issue's* acceptance criteria only (grep for required
    functions/CSS/HTML, check migration files exist, etc). Do **not**
    put `ruff check`, `pyright`, or the full `pytest` suite in this
-   script — those run separately in steps 5–8. A targeted
+   script — those run separately in steps 6–9. A targeted
    `uv run pytest tests/some_file.py` for this issue's own test file is
    fine to include. `chmod +x` it. (This file's existence is also what
    the no-arg resume-detection above looks for.)
-5. **Python projects only** (repo has `pyproject.toml`): run `run-ruff`
+6. **Python projects only** (repo has `pyproject.toml`): run `run-ruff`
    and `run-pyright`. For each, prefer the project's own
    `./run-<name>.sh` if present; otherwise use this package's bundled
    default at `../bin/run-<name>.sh` (relative to this skill
    directory — invoke with `bash`, CWD at the repo root; never copy it
    into the project). `run-pyright` is scoped to `src/`, fast.
-   Failure → fix code, restart from 5.
-
-   **agent-stats 계측**: 시작 시 `git rev-parse HEAD`를 `<시작HEAD>`로
-   기록한다 (Step 11의 loc_added 산출용). 같은 순간 ISO 8601 타임스탬프도
-   얻어 `issues/issue-<#N>__agent-stats.json`을 **최초 생성**한다
-   (파일이 이미 있으면 — 드문 재실행 케이스 — `issue`/`started`는
-   보존하고 덮어쓰지 않는다). **타임스탬프 규약** (이 파일의 모든
-   ISO 8601 필드에 공통 적용 — `started`/`mvp.ts`/이하 review_outcome.ts
-   등): 로컬 타임존 오프셋을 포함하고, UTC `Z`로 강제 변환하지 않는다
-   (`date +%Y-%m-%dT%H:%M:%S%:z` 또는 동등한 방법 — 예:
-   `2026-07-13T14:23:01-04:00`):
-   ```json
-   {
-     "issue": <이슈번호>,
-     "started": "<ISO8601>",
-     "coders": { "<base명>": { "model": "<버전 포함 모델명>" } }
-   }
-   ```
-   ruff/pyright 각각 실패해 "restart from 5"할 때마다 실행 세션이 자기
-   작업 컨텍스트 안에서 카운터(실패 횟수)를 증가시킨다(파일 I/O 없음).
-   pytest/회귀 스크립트는 계측하지 않는다.
-
-    **cost_details 계측 — "before mvp"**: 위 `issue-<#N>__agent-stats.json`
-    최초 생성 직후, `bin/log-cost-<base명>.sh <repo-path> issue-<#N>
-    "before mvp"`를 호출한다(Windows는 `.bat`/`.ps1` 동일 인자 — pydantic이
-    필요해 항상 `uv run`을 거치는 얇은 wrapper이며 셋 다 같은
-    `bin/log-cost-<base명>.py`를 감싼다). **스크립트 탐색 우선순위**: 대상
-    프로젝트의 `<repo-path>/bin/log-cost-<base명>.sh`가 존재하면 이를 우선 호출하고,
-    없을 경우 플러그인 패키지 번들(`../bin/log-cost-<base명>.sh` 또는
-    `~/.gemini/config/plugins/tayaee-autosdlc/bin/log-cost-<base명>.sh`)을
-    폴백 탐색하여 호출한다. `<base명>`은 **바로 위
-    `coders`에 쓴 것과 정확히 동일한 값**이어야 한다 — 이 실행 세션
-    자신을 가리키는 값을 새로 판단하지 않고, 방금 `coders.<base명>` 키를
-    쓸 때 이미 확정한 값을 그대로 재사용한다. 이 값이 실제로 이 세션의
-    모델과 다르면(예: 잘못된 wrapper 이름을 그대로 베낌) 이후 모든
-    cost_details 항목이 오염되므로, 확신이 없으면 추측해서 채우지 말고
-    멈춰서 확인한다. 이 스크립트는 자기완결적으로 5시간/7일 used_pct를
-    조회해(조회 불가 provider는 null) `cost_details`에 이벤트를
-    append한다 — 실패해도 mvp 진행 자체를 막지 않는다(계측은 감사
-    목적이지 게이트가 아님).
-6. `uv run python -m compileall . -q`. Failure → fix code, restart from 5.
-7. `run-unit-tests` (full suite) — same project-or-default resolution
-   as step 5. Failure → fix code, restart from 5.
-8. Run `./regression-tests/verify-issue-#.sh` directly (this is the
-   issue-specific script from step 4, not the `run-regression-tests`
+   Failure → fix code, restart from 6.
+   (ruff/pyright 실패 횟수는 세션 카운터로 기록한다).
+7. **Python projects only**: `uv run python -m compileall . -q`. Failure → fix code, restart from 6.
+8. `run-unit-tests` (full suite if script exists) — same project-or-default resolution
+   as step 6. Failure → fix code, restart from 6.
+9. Run `./regression-tests/verify-issue-#.sh` directly (this is the
+   issue-specific script from step 5, not the `run-regression-tests`
    wrapper). Exit 0 → continue. Non-zero → fix implementation, restart
-   from 5.
-9. `run-regression-tests` — same project-or-default resolution as step
-   5; runs every *other* existing `regression-tests/verify-issue-*.sh`
-   in order.
-   - All pass → continue.
-   - A failure is either: (a) a real bug in the new code — fix and
-     restart from 5; or (b) that script's own criteria are now
-     obsolete because this issue intentionally changed behavior —
-     update that script, then write
-     `regression-tests/verify-issue-<old#>.conflict-with-<this#>.md`
-     documenting what changed and why (a human reviews and resolves
-     that file later; stage it with the rest).
-   - **Python projects only**: also run `run-pyright-full` (whole
-     project, no path restriction — slower than step 5's `run-pyright`)
-     before moving on. Same failure handling as above.
-10. **UI verification** — triggered when the issue has a `### UI 검증`
+   from 6.
+10. `run-regression-tests` — same project-or-default resolution as step
+    6; runs every *other* existing `regression-tests/verify-issue-*.sh`
+    in order.
+    - All pass → continue.
+    - A failure is either: (a) a real bug in the new code — fix and
+      restart from 6; or (b) that script's own criteria are now
+      obsolete because this issue intentionally changed behavior —
+      update that script, then write
+      `regression-tests/verify-issue-<old#>.conflict-with-<this#>.md`
+      documenting what changed and why (a human reviews and resolves
+      that file later; stage it with the rest).
+    - **Python projects only**: also run `run-pyright-full` (whole
+      project, no path restriction — slower than step 6's `run-pyright`)
+      before moving on. Same failure handling as above.
+11. **UI verification** — triggered when the issue has a `### UI 검증`
     section, **or** when the issue is UI-touching per the test defined
     in step 1 (extension match *plus* user-visible browser behaviour —
     never on a file-extension match alone).
@@ -256,19 +230,19 @@ failure has an unambiguous line between what's live and what isn't.
       check installs `agent-browser` up front, so this branch normally
       never arises there; if it somehow does, stop and report instead
       of prompting-then-waiting.
-11. Update `issues/issue-#.md`'s `## 구현 결과` section: completion
+12. Update `issues/issue-#.md`'s `## 구현 결과` section: completion
     timestamp (ISO 8601, local timezone offset — same convention as
-    Step 5, never UTC `Z`), changed files, deviation from plan (or
+    Step 2, never UTC `Z`), changed files, deviation from plan (or
     "없음"), and the verify result (this script's pass/fail +
     regression suite status).
 
-    **agent-stats.json — `coders.<base명>.mvp` 채움**: 위 갱신 직전,
-    Step 5가 만들어 둔 `issues/issue-<#N>__agent-stats.json`을 읽어
+    **agent-stats.json — `coders.<base명>.mvp` 채움 (모든 프로젝트 필수)**:
+    위 갱신 직전, Step 2가 만들어 둔 `issues/issue-<#N>__agent-stats.json`을 읽어
     (`issue`/`started` 필드는 보존) `coders.<base명>.mvp`를 채운다:
     ```json
     {
       "issue": <이슈번호>,
-      "started": "<Step 5가 기록한 ISO8601>",
+      "started": "<Step 2가 기록한 ISO8601>",
       "coders": {
         "<base명>": {
           "model": "<버전 포함 모델명>",
@@ -276,8 +250,8 @@ failure has an unambiguous line between what's live and what isn't.
             "ts": "<ISO8601>",
             "loc_added": <loc_added 수치>,
             "static_analysis_failures": {
-              "ruff": <ruff 실패 횟수>,
-              "pyright": <pyright 실패 횟수>
+              "ruff": <ruff 실패 횟수 또는 null>,
+              "pyright": <pyright 실패 횟수 또는 null>
             }
           }
         }
@@ -285,16 +259,13 @@ failure has an unambiguous line between what's live and what isn't.
     }
     ```
     - `loc_added`는 `<시작HEAD>..HEAD` 전 파일의 `git diff --numstat` added 합 (삭제·바이너리 제외).
-    - `ruff` / `pyright` 실패 횟수는 Step 5에서 세션이 카운트한 값이며, 해당 도구가 프로젝트 미지원(pyproject.toml 없음 등)으로 실행 안 된 경우 `null`로 기록한다.
-    - `mvp` 섹션만 덮어쓰고 기존 `review_outcome` 섹션이 존재할 경우 보존한다(재실행 케이스).
+    - `ruff` / `pyright` 실패 횟수는 Step 6에서 세션이 카운트한 값이며, 해당 도구가 프로젝트 미지원(pyproject.toml 없음 등)으로 실행 안 된 경우 `null`로 기록한다.
 
     **cost_details 계측 — "after mvp"**: 위 `coders.<base명>.mvp` 채움
-    직후, `bin/log-cost-<base명>.sh <repo-path> issue-<#N> "after mvp"`를
-    호출한다 — `<base명>`은 Step 5의 "before mvp" 호출과 **정확히 같은
-    값**이어야 한다(다시 판단하지 말고 그대로 재사용).
-12. `git add` everything: migration files, code, the updated issue
-    file, any `.conflict-with-` notes.
-13. **Stop.** Report what was implemented and that it's ready for
+    직후, `log-cost.sh <repo-path> issue-<#N> "after mvp"` (또는 `log-cost.py --coder <base명> <repo-path> issue-<#N> "after mvp"`)를 호출한다.
+13. `git add` everything: migration files, code, the updated issue
+    file, `issues/issue-<#N>__agent-stats.json`, any `.conflict-with-` notes.
+14. **Stop.** Report what was implemented and that it's ready for
     `aacpd #` (or, mid-batch under `/autotdd`, that it will be chained
     automatically).
 
