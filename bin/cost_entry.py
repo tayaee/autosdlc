@@ -84,12 +84,40 @@ def append_cost_detail(
     if dryrun:
         return path, entry
 
-    if not path.is_file():
-        raise FileNotFoundError(f"{path} 없음")
+    path.parent.mkdir(parents=True, exist_ok=True)
 
-    data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise ValueError(f"{path} 객체 아님")  # noqa: TRY004
+    if not path.is_file():
+        data = {
+            "issue": int(n),
+            "started": now_iso8601(),
+            "coders": {
+                script_id: {
+                    "model": model,
+                }
+            },
+            "cost_details": [],
+        }
+    else:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                data = {
+                    "issue": int(n),
+                    "started": now_iso8601(),
+                    "coders": {script_id: {"model": model}},
+                    "cost_details": [],
+                }
+        except Exception:  # noqa: BLE001
+            data = {
+                "issue": int(n),
+                "started": now_iso8601(),
+                "coders": {script_id: {"model": model}},
+                "cost_details": [],
+            }
+
+    coders = data.setdefault("coders", {})
+    if script_id not in coders:
+        coders[script_id] = {"model": model}
 
     cost_details = data.setdefault("cost_details", [])
     cost_details.append(entry.model_dump())
