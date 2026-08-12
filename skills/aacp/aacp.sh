@@ -134,8 +134,17 @@ ISSUE_BASENAME=$(basename "$ISSUE_FILE")
 # default in bin/ (never copied into the project — see SKILL.md).
 # Runs before any git mutation, so a failure here leaves the repo untouched.
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AUTOSDLC_BIN_DIR="${AUTOSDLC_BIN_DIR:-$HOME/.claude/bin}"
-BIN_DIR="$AUTOSDLC_BIN_DIR"
+if [ -z "${AUTOSDLC_BIN_DIR:-}" ]; then
+  if [ -d "$SKILL_DIR/../../bin" ]; then
+    BIN_DIR="$(cd "$SKILL_DIR/../../bin" && pwd)"
+  elif [ -d "$SKILL_DIR/../bin" ]; then
+    BIN_DIR="$(cd "$SKILL_DIR/../bin" && pwd)"
+  else
+    BIN_DIR="$HOME/.claude/bin"
+  fi
+else
+  BIN_DIR="$AUTOSDLC_BIN_DIR"
+fi
 
 run_check() {
   local name="$1"
