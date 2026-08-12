@@ -81,7 +81,7 @@ def main() -> None:
             "effective_remaining_pct": min(five_h_rem, weekly_rem),
             "available": True,
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         result = {
             "provider": "claudecli",
             "five_hour_remaining_pct": 0,

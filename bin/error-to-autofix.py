@@ -14,6 +14,7 @@ from pathlib import Path
 # autoqafix_core.py와 같은 위치이므로 임포트 가능
 import autoqafix_core as core
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", required=True, type=str, help="Repository root path")
@@ -37,9 +38,9 @@ def main():
     # select-llm 호출
     select_llm_path = Path(__file__).parent / "select-llm.py"
     try:
-        proc = subprocess.run(["python3", str(select_llm_path)], capture_output=True, text=True, timeout=30)
+        proc = subprocess.run(["python3", str(select_llm_path)], capture_output=True, text=True, timeout=30, check=False)
         selected_llm = proc.stdout.strip()
-    except Exception as e:
+    except Exception:  # noqa: BLE001
         selected_llm = "none"
 
     selected_tier = tiers.get(selected_llm, "local")
@@ -49,18 +50,18 @@ def main():
         print("유료 LLM 부적격, 보고 연기")
         # 오프셋 비전진: log-scan을 --dry-run으로 실행
         log_scan_path = Path(__file__).parent / "log-scan.py"
-        subprocess.run(["python3", str(log_scan_path), "--repo", str(repo_path), "--dry-run"], capture_output=True)
+        subprocess.run(["python3", str(log_scan_path), "--repo", str(repo_path), "--dry-run"], capture_output=True, check=False)
         sys.exit(0)
 
     # 1단계: 에러 스캔 (dry-run)
     log_scan_path = Path(__file__).parent / "log-scan.py"
-    proc = subprocess.run(["python3", str(log_scan_path), "--repo", str(repo_path), "--dry-run"], capture_output=True, text=True)
+    proc = subprocess.run(["python3", str(log_scan_path), "--repo", str(repo_path), "--dry-run"], capture_output=True, text=True, check=False)
     if proc.returncode != 0:
         sys.exit(1)
 
     try:
         scan_result = json.loads(proc.stdout)
-    except Exception:
+    except Exception:  # noqa: BLE001
         scan_result = {"errors": [], "window": {"start": "", "end": ""}}
 
     errors = scan_result.get("errors", [])
@@ -79,7 +80,7 @@ def main():
                         if "dedup-key:" in line:
                             _, _, key = line.partition("dedup-key:")
                             dedup_keys_in_issues.add(key.strip())
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
     remaining_errors = [err for err in errors if err["dedup_key"] not in dedup_keys_in_issues]
@@ -124,12 +125,10 @@ def main():
 
         # TIER 파싱
         tier = "manual"
-        tier_found = False
         for line in reversed(lines):
             m = re.match(r'^TIER:\s*(\S+)', line)
             if m:
                 tier = m.group(1).lower()
-                tier_found = True
                 break
 
         if tier not in ("local-ok", "paid-only", "manual"):
@@ -159,7 +158,7 @@ def main():
         # 번호 예약
         try:
             n, filepath = core.reserve_number(repo_path, "autofix", summary, "error-to-autofix")
-        except Exception:
+        except Exception:  # noqa: BLE001
             all_success = False
             continue
 
@@ -177,7 +176,7 @@ def main():
 
         try:
             core.finalize_item(repo_path, filepath, body)
-        except Exception:
+        except Exception:  # noqa: BLE001
             all_success = False
             continue
 
@@ -189,7 +188,7 @@ def main():
                 core._git(repo_path, "mv", str(filepath.relative_to(repo_path)), str(new_filepath.relative_to(repo_path)))
                 core._git(repo_path, "commit", "-q", "-m", f"autofix-{n}__STATE-manual: {summary}")
                 core._git(repo_path, "push")
-            except Exception:
+            except Exception:  # noqa: BLE001
                 all_success = False
                 continue
 
@@ -197,7 +196,7 @@ def main():
 
     # 오프셋 전진
     if len(targets) > 0 and all_success and processed_count == len(targets):
-        subprocess.run(["python3", str(log_scan_path), "--repo", str(repo_path)], capture_output=True)
+        subprocess.run(["python3", str(log_scan_path), "--repo", str(repo_path)], capture_output=True, check=False)
 
 if __name__ == "__main__":
     main()

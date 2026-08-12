@@ -68,8 +68,8 @@ def collect(repo: Path, since: date | None) -> tuple[dict[str, dict[str, int]], 
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
-                raise ValueError("최상위가 객체가 아님")
-        except Exception as exc:
+                raise ValueError("최상위가 객체가 아님")  # noqa: TRY004
+        except Exception as exc:  # noqa: BLE001
             print(f"경고: {f} 파싱 불가 — 건너뜀 ({exc})", file=sys.stderr)
             continue
         reviewers = data.get("reviewers")
@@ -131,7 +131,7 @@ def collect_coders(repo: Path, since: date | None) -> dict[str, dict]:
         issue_n = int(digits)
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(f"경고: {f} 파싱 불가 — 건너뜀 ({exc})", file=sys.stderr)
             continue
         if not isinstance(data, dict):

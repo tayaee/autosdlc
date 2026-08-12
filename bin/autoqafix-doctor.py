@@ -276,7 +276,7 @@ def run_pings(d: Doctor, names: list[str], wrapper_dir: Path) -> None:
             
         try:
             rc, out, err, timed_out = core.run_with_timeout(cmd_args, 180)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             d.fail(
                 f"ping-{name}",
                 f"실행 실패 ({e})",

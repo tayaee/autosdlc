@@ -29,7 +29,7 @@ def duration_to_seconds(value: str) -> int:
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    return subprocess.run(  # noqa: PLW1510
         [sys.executable, str(SCRIPT), *args],
         capture_output=True, text=True, timeout=30,
     )

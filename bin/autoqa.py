@@ -4,12 +4,13 @@
 # dependencies = []
 # ///
 import argparse
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 # autoqafix_core.py와 같은 위치이므로 임포트 가능
 import autoqafix_core as core
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -40,7 +41,7 @@ def main():
     # 3. error-to-autofix 실행 및 락 해제
     try:
         script_path = Path(__file__).parent / "error-to-autofix.py"
-        proc = subprocess.run([sys.executable, str(script_path), "--repo", str(repo_path)])
+        proc = subprocess.run([sys.executable, str(script_path), "--repo", str(repo_path)], check=False)
         sys.exit(proc.returncode)
     finally:
         core.release_lock(repo_path)

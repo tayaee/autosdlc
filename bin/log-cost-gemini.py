@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from cost_entry import append_cost_detail, query_check_usage_pct  # noqa: E402
+from cost_entry import append_cost_detail, query_check_usage_pct
 
 MODEL = "gemini"
 PROVIDER_KEY = "gemini"

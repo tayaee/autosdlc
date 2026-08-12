@@ -1,28 +1,21 @@
-# aacpd default -- used only when the target project has no
-# run-regression-tests.ps1 of its own. Assumes CWD is already the target
-# repo root. Runs every regression-tests/verify-issue-*.sh (via bash) in
-# order. verify-issue-*.sh scripts are always bash, even on Windows hosts.
-$pass = 0
-$fail = 0
-$failed = @()
+$GateName = "run-regression-tests"
+$Report = Join-Path $env:TEMP "aacpd-$GateName-$PID.log"
+$Verbose = $env:AACP_VERBOSE -eq "1"
 
-Get-ChildItem -Path "regression-tests" -Filter "verify-issue-*.sh" -ErrorAction SilentlyContinue | ForEach-Object {
-    Write-Host ""
-    bash $_.FullName
-    if ($LASTEXITCODE -ne 0) {
-        $fail++
-        $failed += $_.Name
+if ($Verbose) {
+    bash bin/run-regression-tests.sh
+    exit $LASTEXITCODE
+} else {
+    bash bin/run-regression-tests.sh > $Report 2>&1
+    $ExitCode = $LASTEXITCODE
+    if ($ExitCode -eq 0) {
+        Remove-Item -Force $Report -ErrorAction SilentlyContinue
+        exit 0
     } else {
-        $pass++
+        [Console]::Error.WriteLine("ERROR: $GateName failed with exit code $ExitCode.")
+        [Console]::Error.WriteLine("Full log saved to: $Report")
+        [Console]::Error.WriteLine("--- Last 60 lines of $Report ---")
+        Get-Content -Tail 60 $Report | ForEach-Object { [Console]::Error.WriteLine($_) }
+        exit $ExitCode
     }
 }
-
-Write-Host ""
-Write-Host "============================="
-Write-Host "Regression results: PASS=$pass FAIL=$fail"
-if ($fail -gt 0) {
-    Write-Host "Failed scripts:"
-    $failed | ForEach-Object { Write-Host "  - $_" }
-    exit 1
-}
-exit 0

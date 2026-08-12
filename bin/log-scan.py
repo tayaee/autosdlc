@@ -13,6 +13,7 @@ from pathlib import Path
 # autoqafix_core.py와 같은 위치이므로 임포트 가능
 import autoqafix_core as core
 
+
 def find_repo_relative_path(file_path_str, repo_path):
     p = Path(file_path_str)
     repo_resolved = repo_path.resolve()
@@ -21,7 +22,7 @@ def find_repo_relative_path(file_path_str, repo_path):
             resolved_p = p.resolve()
             if resolved_p.is_relative_to(repo_resolved):
                 return str(resolved_p.relative_to(repo_resolved))
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
     else:
         # 상대 경로인 경우
@@ -78,7 +79,7 @@ def main():
         try:
             with open(offsets_json_path, "r", encoding="utf-8") as f:
                 offsets_data = json.load(f)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     logs_dir = repo_path / "logs"
@@ -95,14 +96,14 @@ def main():
         try:
             with open(filepath, "rb") as f:
                 prefix_bytes = f.read(1024)
-        except Exception:
+        except Exception:  # noqa: BLE001
             prefix_bytes = b""
         prefix_len = len(prefix_bytes)
         prefix_sha1 = hashlib.sha1(prefix_bytes).hexdigest()
         
         try:
             size = filepath.stat().st_size
-        except Exception:
+        except Exception:  # noqa: BLE001
             size = 0
 
         # 기존 상태 조회
@@ -122,9 +123,7 @@ def main():
         old_offset = state.get("offset", 0)
 
         is_new_file = False
-        if prefix_sha1 != old_prefix_sha1 or prefix_len != old_prefix_len:
-            is_new_file = True
-        elif size < old_offset:
+        if prefix_sha1 != old_prefix_sha1 or prefix_len != old_prefix_len or size < old_offset:
             is_new_file = True
 
         if is_new_file:
@@ -143,7 +142,7 @@ def main():
         try:
             with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                 all_lines = f.readlines()
-        except Exception:
+        except Exception:  # noqa: BLE001
             all_lines = []
 
         # 라인별 시작 오프셋 계산
@@ -181,7 +180,7 @@ def main():
                 else:
                     tb_end_idx = len(all_lines) - 1
 
-                tb_lines = all_lines[tb_start_idx : tb_end_idx + 1]
+                all_lines[tb_start_idx : tb_end_idx + 1]
                 
                 # 직전 타임스탬프 라인 찾기
                 latest_ts = ""

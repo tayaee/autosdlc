@@ -69,4 +69,13 @@ autotddreviewfix 흐름(가장 긴 path) 에서 이 효과가 누적되어
 
 ## 구현 결과
 
-(작업 후 기입)
+- **구현 완료 일시**: 2026-08-11T20:54:19-04:00
+- **수정/신규 파일**:
+  - `bin/run-*.sh` (5종) silent-pass / loud-fail redirect 및 AACP_VERBOSE 지원 추가
+  - `bin/run-*.py` (5종) silent-pass / loud-fail redirect 및 PEP 723 polyglot 지원 추가
+  - `bin/run-*.ps1` (5종), `bin/run-*.bat` (5종) silent-pass / loud-fail 지원 추가
+  - `skills/aacpd/aacp.sh` run_check() silent-pass 적용
+  - `regression-tests/verify-issue-56.sh` 신규 작성
+- **계획 대비 차이점**: 없음
+- **검증 결과**: `verify-issue-56.sh`, `run-ruff`, `run-pyright`, `run-unit-tests`, `run-regression-tests`, `run-pyright-full` 모두 성공 (PASS)
+

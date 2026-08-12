@@ -42,9 +42,9 @@ def role_cmd(role: str, repo: Path) -> list[str]:
 def run_round(role: str, repo: Path) -> int:
     injected = os.environ.get("AUTOQAFIX_ROLE_CMD")
     if injected:
-        proc = subprocess.run(injected, shell=True, cwd=repo)
+        proc = subprocess.run(injected, shell=True, cwd=repo, check=False)
     else:
-        proc = subprocess.run(role_cmd(role, repo), cwd=repo)
+        proc = subprocess.run(role_cmd(role, repo), cwd=repo, check=False)
     return proc.returncode
 
 

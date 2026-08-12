@@ -2,26 +2,41 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""aacpd/bin/run-ruff.py — aacpd 의 ruff 검증 게이트 .py 변종.
-
-`bash run-ruff.sh` 와 동일 동작을 한다 — `uv run ruff check --fix .`
-를 subprocess 로 실행. aacpd/bin/ 의 4 변종 중 하나로, Windows 사용자가
-PowerShell 이 아닌 cmd 가 없는 환경(예: git-bash 만 있는 경우)에서
-대체 진입점으로 사용 가능.
-
-CWD 가 이미 target project root 라고 가정한다 — aacp.sh 의 step 0 가
-이를 보장한다. 호출 형태는 skill 매개변수 없이 단순히 `python3
-run-ruff.py` 또는 `bash run-ruff.py` 모두 가능.
-"""
-from __future__ import annotations
-
+import os
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
 
 def main() -> int:
-    return subprocess.call(["uv", "run", "ruff", "check", "--fix", "."])
-
+    gate_name = "run-ruff"
+    verbose = os.environ.get("AACP_VERBOSE", "0") == "1"
+    report = Path(tempfile.gettempdir()) / f"aacpd-{gate_name}-{os.getpid()}.log"
+    
+    cmd = ['uv', 'run', 'ruff', 'check', '--fix', '.']
+    if len(sys.argv) > 1:
+        cmd.extend(sys.argv[1:])
+        
+    if verbose:
+        res = subprocess.run(cmd, check=False)
+        return res.returncode
+    else:
+        with open(report, "w", encoding="utf-8") as fp:
+            res = subprocess.run(cmd, stdout=fp, stderr=subprocess.STDOUT, check=False)
+        if res.returncode == 0:
+            if report.exists():
+                report.unlink()
+            return 0
+        else:
+            sys.stderr.write(f"ERROR: {gate_name} failed with exit code {res.returncode}.\n")
+            sys.stderr.write(f"Full log saved to: {report}\n")
+            sys.stderr.write(f"--- Last 60 lines of {report} ---\n")
+            if report.exists():
+                lines = report.read_text(encoding="utf-8", errors="replace").splitlines()
+                for line in lines[-60:]:
+                    sys.stderr.write(line + "\n")
+            return res.returncode
 
 if __name__ == "__main__":
     sys.exit(main())

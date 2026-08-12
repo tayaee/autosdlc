@@ -2,47 +2,41 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""aacpd/bin/run-regression-tests.py — 모든 verify-issue-*.sh / verify-autofix-*.sh
-를 순차 실행하는 .py 변종. `bash run-regression-tests.sh` 와 같은 동작.
-
-기본 동작:
-- regression-tests/*.sh 를 glob 해서 정렬 순으로 실행
-- PASS/FAIL 카운트하고 마지막 줄에 요약 출력
-- FAIL 이 있으면 exit 1
-
-CWD 는 target repo root 라고 가정한다.
-"""
-from __future__ import annotations
-
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
 def main() -> int:
-    rg_dir = Path("regression-tests")
-    if not rg_dir.is_dir():
-        print("ERROR: regression-tests/ 부재", file=sys.stderr)
-        return 1
-
-    scripts = sorted(rg_dir.glob("*.sh"))
-    if not scripts:
-        print("NOTE: 실행할 verify-issue-*.sh 가 없음", file=sys.stderr)
-        return 0
-
-    pass_count = 0
-    fail_count = 0
-    for script in scripts:
-        print(f"=== {script}")
-        result = subprocess.run(["bash", str(script)])
-        if result.returncode == 0:
-            pass_count += 1
+    gate_name = "run-regression-tests"
+    verbose = os.environ.get("AACP_VERBOSE", "0") == "1"
+    report = Path(tempfile.gettempdir()) / f"aacpd-{gate_name}-{os.getpid()}.log"
+    
+    cmd = ['bash', 'bin/run-regression-tests.sh']
+    if len(sys.argv) > 1:
+        cmd.extend(sys.argv[1:])
+        
+    if verbose:
+        res = subprocess.run(cmd, check=False)
+        return res.returncode
+    else:
+        with open(report, "w", encoding="utf-8") as fp:
+            res = subprocess.run(cmd, stdout=fp, stderr=subprocess.STDOUT, check=False)
+        if res.returncode == 0:
+            if report.exists():
+                report.unlink()
+            return 0
         else:
-            fail_count += 1
-
-    print(f"\nregression: {pass_count} passed, {fail_count} failed")
-    return 0 if fail_count == 0 else 1
-
+            sys.stderr.write(f"ERROR: {gate_name} failed with exit code {res.returncode}.\n")
+            sys.stderr.write(f"Full log saved to: {report}\n")
+            sys.stderr.write(f"--- Last 60 lines of {report} ---\n")
+            if report.exists():
+                lines = report.read_text(encoding="utf-8", errors="replace").splitlines()
+                for line in lines[-60:]:
+                    sys.stderr.write(line + "\n")
+            return res.returncode
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -1,7 +1,37 @@
 #!/usr/bin/env bash
-# aacpd default — used only when the target project has no ./run-ruff.sh
-# of its own. Unlike a project-local copy, this does NOT cd to its own
-# directory: aacpd's deploy.sh already ensures CWD is the target repo root.
 set -euo pipefail
-echo "=== ruff check --fix ==="
-uv run ruff check --fix
+
+GATE_NAME="run-ruff"
+TMP_DIR="${TMPDIR:-/tmp}"
+REPORT="${TMP_DIR}/aacpd-${GATE_NAME}-$$.log"
+
+run_gate() {
+PATH="$(echo "$PATH" | tr ":" "\n" | grep -v "/mnt/" | tr "\n" ":")" uv run --with ruff ruff check --fix .
+}
+
+if [ "${AACP_VERBOSE:-0}" = "1" ]; then
+    set +e
+    run_gate 2>&1 | tee "$REPORT"
+    EXIT=${PIPESTATUS[0]}
+    set -e
+    echo "REPORT file: $REPORT"
+    echo "--- Last 10 lines ---"
+    tail -n 10 "$REPORT" || true
+    rm -f "$REPORT"
+    exit "$EXIT"
+else
+    set +e
+    run_gate >"$REPORT" 2>&1
+    EXIT=$?
+    set -e
+    if [ "$EXIT" -eq 0 ]; then
+        rm -f "$REPORT"
+        exit 0
+    else
+        echo "ERROR: ${GATE_NAME} failed with exit code ${EXIT}." >&2
+        echo "Full log saved to: ${REPORT}" >&2
+        echo "--- Last 60 lines of ${REPORT} ---" >&2
+        tail -n 60 "$REPORT" >&2
+        exit "$EXIT"
+    fi
+fi

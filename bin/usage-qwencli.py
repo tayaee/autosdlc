@@ -30,7 +30,7 @@ def main() -> None:
     health_cmd = os.environ.get("QWEN_HEALTH_CMD", "qwen --version")
     error = None
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: PLW1510
             shlex.split(health_cmd),
             timeout=10,
             stdout=subprocess.DEVNULL,
@@ -39,7 +39,7 @@ def main() -> None:
         up = proc.returncode == 0
         if not up:
             error = f"health check exited {proc.returncode}"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         up = False
         error = str(e)
 

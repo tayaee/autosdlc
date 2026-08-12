@@ -131,7 +131,7 @@ def enumerate_items(worktree: Path, stream: str) -> list[Path]:
             continue
         try:
             text = f.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
+        except Exception:  # noqa: BLE001, S112
             continue
         if "## " not in text:
             # Reservation in progress (only header lines exist).
@@ -151,11 +151,11 @@ def select_llm() -> tuple[str | None, dict[str, str]]:
         return forced, tiers
     select_llm_path = SCRIPT_DIR / "select-llm.py"
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: PLW1510
             ["uv", "-q", "run", str(select_llm_path)],
             capture_output=True, text=True, timeout=60,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None, tiers
     if proc.returncode != 0:
         return None, tiers
@@ -166,7 +166,7 @@ def read_agent_tier(path: Path) -> str | None:
     """Read the existing `agent-tier:` value if present, else None."""
     try:
         text = path.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
     for line in text.splitlines():
         s = line.strip()
@@ -180,7 +180,7 @@ def judge_tier(item: Path, wrapper_path: Path) -> str | None:
     line. Returns tier or None on parse / runner failure."""
     try:
         content = item.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
     light_timeout = float(os.environ.get("AUTOQAFIX_LIGHT_TIMEOUT", "1200"))
     rc, out, _, timed_out = core.run_with_timeout(
@@ -215,7 +215,7 @@ def stamp_tier(worktree: Path, item: Path, tier: str) -> None:
     then commit and push inside the worktree."""
     try:
         original = item.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
+    except Exception:  # noqa: BLE001
         original = ""
     lines = original.splitlines()
 

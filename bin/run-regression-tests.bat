@@ -1,29 +1,21 @@
 @echo off
-rem aacpd default -- used only when the target project has no
-rem run-regression-tests.bat of its own. Assumes CWD is already the target
-rem repo root. Runs every regression-tests\verify-issue-*.sh (via bash) in
-rem order. verify-issue-*.sh scripts are always bash, even on Windows hosts.
-setlocal enabledelayedexpansion
-set PASS=0
-set FAIL=0
-set FAILED=
+set GATE_NAME=run-regression-tests
+set REPORT=%TEMP%\aacpd-%GATE_NAME%-%RANDOM%.log
 
-for %%s in (regression-tests\verify-issue-*.sh) do (
-    echo.
-    bash "%%s"
-    if errorlevel 1 (
-        set /a FAIL+=1
-        set FAILED=!FAILED! %%s
-    ) else (
-        set /a PASS+=1
-    )
+if "%AACP_VERBOSE%"=="1" (
+    bash bin/run-regression-tests.sh
+    exit /b %ERRORLEVEL%
 )
 
-echo.
-echo =============================
-echo Regression results: PASS=%PASS% FAIL=%FAIL%
-if %FAIL% gtr 0 (
-    echo Failed scripts:%FAILED%
-    exit /b 1
+bash bin/run-regression-tests.sh > "%REPORT%" 2>&1
+if %ERRORLEVEL% equ 0 (
+    del /f "%REPORT%" 2>nul
+    exit /b 0
+) else (
+    set EXIT_CODE=%ERRORLEVEL%
+    echo ERROR: %GATE_NAME% failed with exit code %EXIT_CODE%. 1>&2
+    echo Full log saved to: %REPORT% 1>&2
+    echo --- Last lines of %REPORT% --- 1>&2
+    type "%REPORT%" 1>&2
+    exit /b %EXIT_CODE%
 )
-exit /b 0

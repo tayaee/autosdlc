@@ -59,7 +59,7 @@ def fetch_usage(name: str) -> dict | None:
     if env_data:
         try:
             return json.loads(env_data)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"[경고] {name}: 주입된 usage 데이터 파싱 실패 ({e}) — 쿼리 시도", file=sys.stderr)
 
     cmd = usage_command(name)
@@ -67,8 +67,8 @@ def fetch_usage(name: str) -> dict | None:
         print(f"[경고] {name}: usage 스크립트 없음 — 후보 제외", file=sys.stderr)
         return None
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-    except Exception as e:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+    except Exception as e:  # noqa: BLE001
         print(f"[경고] {name}: usage 명령 실행 실패 ({e}) — 후보 제외", file=sys.stderr)
         return None
     if proc.returncode != 0:
@@ -80,7 +80,7 @@ def fetch_usage(name: str) -> dict | None:
         return None
     try:
         return json.loads(lines[-1])
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"[경고] {name}: usage 출력 파싱 실패 ({e}) — 후보 제외", file=sys.stderr)
         return None
 
@@ -131,9 +131,9 @@ def print_explain(rows: list[dict], selected: str | None) -> None:
             return "-" if v is None else str(v)
         is_selected = "*" if r["name"] == selected else ""
         print(
-            f"{r['name']:<16} {r['tier']:<6} {str(r['available']):<10} "
+            f"{r['name']:<16} {r['tier']:<6} {r['available']!s:<10} "
             f"{fmt(r['five_hour']):>5} {fmt(r['weekly']):>5} {fmt(r['effective']):>5} "
-            f"{str(r['eligible']):<9} {is_selected}",
+            f"{r['eligible']!s:<9} {is_selected}",
             file=sys.stderr,
         )
     print(f"decision: {selected if selected else 'none'}", file=sys.stderr)

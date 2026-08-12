@@ -75,7 +75,7 @@ def append_cost_detail(
 
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise ValueError(f"{path} 객체 아님")
+        raise ValueError(f"{path} 객체 아님")  # noqa: TRY004
 
     data.setdefault("cost_details", []).append(entry.model_dump())
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -110,7 +110,7 @@ def query_check_usage_pct(provider_key: str) -> tuple[float | None, float | None
             capture_output=True, text=True, timeout=15, check=True,
         )
         payload = json.loads(result.stdout)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"WARN: check-usage 조회 실패 ({exc}) — used_pct 조회 불가", file=sys.stderr)
         return None, None
 

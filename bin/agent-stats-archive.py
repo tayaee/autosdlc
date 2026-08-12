@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"ERROR: {path} 파싱 불가 ({exc})", file=sys.stderr)
         return 1
 
@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     archived = datetime.now().astimezone()
-    delta_seconds = int(round((archived - started).total_seconds()))
+    delta_seconds = round((archived - started).total_seconds())
     try:
         duration = format_duration(delta_seconds)
     except ValueError as exc:

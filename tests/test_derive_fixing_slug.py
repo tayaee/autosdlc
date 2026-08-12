@@ -17,8 +17,7 @@ sys.path.insert(0, str(_TOOLS))
 
 SCRIPT = _TOOLS / "derive_fixing_slug.py"
 
-import derive_fixing_slug as dfs  # noqa: E402
-
+import derive_fixing_slug as dfs
 
 # --------------------------------------------------------------------------- #
 # 1. normalize_slug
@@ -218,7 +217,7 @@ def test_build_filename_empty_slug_raises() -> None:
 
 
 def _run_cli(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    return subprocess.run(  # noqa: PLW1510
         [sys.executable, str(SCRIPT), *args],
         input=stdin, capture_output=True, text=True, timeout=10,
     )

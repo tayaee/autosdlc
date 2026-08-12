@@ -1,11 +1,21 @@
 @echo off
-rem aacpd default -- used only when the target project has no
-rem run-pyright.bat of its own. Assumes CWD is already the target repo root.
-rem Quick pass: type-checks src\ only. See run-pyright-full.bat for the
-rem whole project.
-echo === pyright (src only) ===
-if exist src (
-    uv run pyright src
+set GATE_NAME=run-pyright
+set REPORT=%TEMP%\aacpd-%GATE_NAME%-%RANDOM%.log
+
+if "%AACP_VERBOSE%"=="1" (
+    uv run pyright
+    exit /b %ERRORLEVEL%
+)
+
+uv run pyright > "%REPORT%" 2>&1
+if %ERRORLEVEL% equ 0 (
+    del /f "%REPORT%" 2>nul
+    exit /b 0
 ) else (
-    uv run pyright .
+    set EXIT_CODE=%ERRORLEVEL%
+    echo ERROR: %GATE_NAME% failed with exit code %EXIT_CODE%. 1>&2
+    echo Full log saved to: %REPORT% 1>&2
+    echo --- Last lines of %REPORT% --- 1>&2
+    type "%REPORT%" 1>&2
+    exit /b %EXIT_CODE%
 )

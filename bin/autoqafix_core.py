@@ -68,12 +68,12 @@ def preflight(role: str, repo: Path) -> list[str]:
 
     # ① repo가 git 루트인지 (git rev-parse --show-toplevel == repo)
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: PLW1510
             ["git", "rev-parse", "--show-toplevel"],
             cwd=str(repo), capture_output=True, text=True, timeout=10,
         )
         top = Path(proc.stdout.strip()).resolve() if proc.returncode == 0 and proc.stdout.strip() else None
-    except Exception:
+    except Exception:  # noqa: BLE001
         top = None
     if top is None or top != repo.resolve():
         failures.append(_msg("cwd가 git repo 루트가 아님", "repo 루트에서 실행하세요"))
@@ -93,12 +93,12 @@ def preflight(role: str, repo: Path) -> list[str]:
     # ⑤ git user.name / user.email 설정됨
     for key in ("user.name", "user.email"):
         try:
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: PLW1510
                 ["git", "config", key],
                 cwd=str(repo), capture_output=True, text=True, timeout=10,
             )
             ok = proc.returncode == 0 and bool(proc.stdout.strip())
-        except Exception:
+        except Exception:  # noqa: BLE001
             ok = False
         if not ok:
             failures.append(_msg(f"git config {key} 미설정", f"git config {key} <값>으로 설정하세요"))
@@ -174,7 +174,7 @@ def peek_lock(repo: Path) -> dict[str, str] | None:
             start_dt = datetime.fromisoformat(start_str)
             if start_dt.tzinfo is None:
                 start_dt = start_dt.replace(tzinfo=timezone.utc)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             data["error"] = "invalid_start"
             data["reason"] = f"Start time '{start_str}' is invalid ISO format: {e}"
             return data
@@ -216,7 +216,7 @@ def is_lock_reclaimable(repo: Path) -> tuple[bool, str]:
                 start_dt = start_dt.replace(tzinfo=timezone.utc)
             age_sec = (datetime.now(timezone.utc) - start_dt).total_seconds()
             is_stale = age_sec > stale_sec
-        except Exception:
+        except Exception:  # noqa: BLE001
             return True, "corrupted_lock"
 
     if is_stale:
@@ -233,7 +233,7 @@ def acquire_lock(role: str, repo: Path) -> bool:
     path = _lock_path(repo)
     lock_info = peek_lock(repo)
     if lock_info:
-        reclaimable, reason = is_lock_reclaimable(repo)
+        reclaimable, _reason = is_lock_reclaimable(repo)
         if not reclaimable:
             return False
 
@@ -323,7 +323,7 @@ def run_with_timeout(
             except ProcessLookupError:
                 pass
         else:
-            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"])
+            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], check=False)
         # Drain remaining output.
         try:
             stdout, stderr = proc.communicate(timeout=2)
@@ -337,7 +337,7 @@ def run_with_timeout(
 def _git(repo: Path, *args: str, timeout: float = 30) -> subprocess.CompletedProcess:
     """Run a git command scoped to `repo` only -- never touches global
     config (docs/autoqafix-design.md 번호 예약 프로토콜, requirement 2)."""
-    return subprocess.run(
+    return subprocess.run(  # noqa: PLW1510
         ["git", "-C", str(repo), *args], capture_output=True, text=True, timeout=timeout
     )
 
