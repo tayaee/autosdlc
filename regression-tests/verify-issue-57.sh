@@ -11,16 +11,17 @@ python3 -c "
 from bin.cost_entry import CostDetailEntry
 entry = CostDetailEntry(
     ts='2026-08-11T20:00:00-04:00',
-    coder='minimax',
+    script_id='minimax',
     model='MiniMax-M3',
     reasoning_effort='medium',
     bucket='default',
     reason='unsupported_provider',
     five_hour_used_pct=None,
     seven_day_used_pct=None,
-    description='test'
+    ts_description='test'
 )
-assert entry.coder == 'minimax'
+assert entry.script_id == 'minimax'
+assert entry.ts_description == 'test'
 assert entry.reason == 'unsupported_provider'
 "
 
@@ -54,8 +55,8 @@ data = json.loads(p.read_text())
 details = data.get('cost_details', [])
 assert len(details) == 1
 e = details[0]
-assert e['description'] == 'before mvp'
-assert 'coder' in e
+assert e['ts_description'] == 'before mvp'
+assert 'script_id' in e
 assert 'reason' in e
 "
 
@@ -65,10 +66,10 @@ cat > "$TMP_REPO/issues/issue-999__agent-stats.json" <<'EOF'
   "issue": 999,
   "started": "2026-08-11T20:00:00-04:00",
   "cost_details": [
-    {"ts": "2026-08-11T20:00:00-04:00", "coder": "sonnet", "model": "Sonnet", "five_hour_used_pct": 37.0, "seven_day_used_pct": null, "description": "start"},
-    {"ts": "2026-08-11T20:05:00-04:00", "coder": "sonnet", "model": "Sonnet", "five_hour_used_pct": 22.0, "seven_day_used_pct": null, "description": "mvp"},
-    {"ts": "2026-08-11T20:10:00-04:00", "coder": "sonnet", "model": "Sonnet", "five_hour_used_pct": 21.0, "seven_day_used_pct": null, "description": "step2"},
-    {"ts": "2026-08-11T20:15:00-04:00", "coder": "sonnet", "model": "Sonnet", "five_hour_used_pct": 19.0, "seven_day_used_pct": null, "description": "step3"}
+    {"ts": "2026-08-11T20:00:00-04:00", "script_id": "sonnet", "model": "Sonnet", "five_hour_used_pct": 37.0, "seven_day_used_pct": null, "ts_description": "start"},
+    {"ts": "2026-08-11T20:05:00-04:00", "script_id": "sonnet", "model": "Sonnet", "five_hour_used_pct": 22.0, "seven_day_used_pct": null, "ts_description": "mvp"},
+    {"ts": "2026-08-11T20:10:00-04:00", "script_id": "sonnet", "model": "Sonnet", "five_hour_used_pct": 21.0, "seven_day_used_pct": null, "ts_description": "step2"},
+    {"ts": "2026-08-11T20:15:00-04:00", "script_id": "sonnet", "model": "Sonnet", "five_hour_used_pct": 19.0, "seven_day_used_pct": null, "ts_description": "step3"}
   ]
 }
 EOF

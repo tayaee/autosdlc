@@ -5,10 +5,12 @@ issue-57: 단계별 5h/7d 쿼터 계측 + reason 필드 + 단일 log-cost.py 통
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
 import time
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -28,14 +30,14 @@ ReasonType = Literal[
 
 class CostDetailEntry(BaseModel):
     ts: str
-    coder: str
+    script_id: str
     model: str
     reasoning_effort: str | None = "medium"
     bucket: str | None = None
     reason: str | None = None
     five_hour_used_pct: float | None = None
     seven_day_used_pct: float | None = None
-    description: str
+    ts_description: str
 
 
 def parse_stream_id(value: str) -> tuple[str, str]:
@@ -54,9 +56,9 @@ def append_cost_detail(
     repo: Path,
     target: str,
     *,
-    coder: str,
+    script_id: str,
     model: str,
-    description: str,
+    ts_description: str,
     reasoning_effort: str | None = "medium",
     bucket: str | None = None,
     reason: str | None = None,
@@ -66,14 +68,14 @@ def append_cost_detail(
 ) -> tuple[Path, CostDetailEntry]:
     entry = CostDetailEntry(
         ts=now_iso8601(),
-        coder=coder,
+        script_id=script_id,
         model=model,
         reasoning_effort=reasoning_effort or "medium",
         bucket=bucket,
         reason=reason,
         five_hour_used_pct=five_hour_used_pct,
         seven_day_used_pct=seven_day_used_pct,
-        description=description,
+        ts_description=ts_description,
     )
 
     stream, n = parse_stream_id(target)
@@ -106,6 +108,99 @@ def _find_check_usage_js() -> Path | None:
         return None
     versions = sorted(cache_root.glob("*/dist/check-usage.js"))
     return versions[-1] if versions else None
+
+
+def _query_antigravity_data() -> dict | None:
+    """Fetch raw JSON data from agy service / cache."""
+    now = time.time()
+    cache_path = Path.home() / ".cache/antigravity/usage.json"
+    cache_exists = cache_path.is_file()
+
+    if not cache_exists or (now - cache_path.stat().st_mtime) > 60:
+        fetched = False
+        ports = []
+        try:
+            for name in os.listdir("/proc"):
+                if name.isdigit():
+                    try:
+                        with open(f"/proc/{name}/comm") as f:
+                            comm = f.read().strip()
+                        if comm == "agy":
+                            fd_dir = f"/proc/{name}/fd"
+                            for fd in os.listdir(fd_dir):
+                                try:
+                                    link = os.readlink(f"{fd_dir}/{fd}")
+                                    m = re.match(r"socket:\[(\d+)\]", link)
+                                    if m:
+                                        with open("/proc/net/tcp") as tcp_f:
+                                            next(tcp_f)
+                                            for line in tcp_f:
+                                                parts = line.strip().split()
+                                                if len(parts) >= 10 and parts[9] == m.group(1) and parts[3] == "0A":
+                                                    ports.append(int(parts[1].split(":")[1], 16))
+                                except Exception:  # noqa: BLE001, S110
+                                    pass
+                    except Exception:  # noqa: BLE001, S110
+                        pass
+        except Exception:  # noqa: BLE001, S110
+            pass
+
+        for port in sorted(list(set(ports))):
+            url = f"http://127.0.0.1:{port}/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary"
+            req = urllib.request.Request(
+                url, data=b"{}", headers={"Content-Type": "application/json"}, method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=2) as r:
+                    if r.status == 200:
+                        data = json.loads(r.read())
+                        groups = data.get("response", {}).get("groups", [])
+                        if any(any(b.get("window") == "5h" for b in g.get("buckets", [])) for g in groups):
+                            cache_path.parent.mkdir(parents=True, exist_ok=True)
+                            cache_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                            fetched = True
+                            break
+            except Exception:  # noqa: BLE001, S110
+                pass
+
+        if not fetched and cache_exists and (now - cache_path.stat().st_mtime) > 3600:
+            return None
+
+    if cache_path.is_file():
+        try:
+            return json.loads(cache_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001, S110
+            pass
+    return None
+
+
+def query_antigravity_group(group_type: str) -> tuple[float | None, float | None]:
+    data = _query_antigravity_data()
+    if not data or not isinstance(data, dict):
+        return None, None
+    groups = data.get("response", {}).get("groups", [])
+    group = None
+    if group_type == "claude":
+        group = next((g for g in groups if "Claude" in g.get("displayName", "") or "3p" in g.get("displayName", "").lower()), None)
+    elif group_type == "gemini":
+        group = next((g for g in groups if "Gemini" in g.get("displayName", "")), None)
+
+    if not group and groups:
+        group = groups[0]
+    if not group:
+        return None, None
+
+    five_h_pct = None
+    weekly_pct = None
+    for bucket in group.get("buckets", []):
+        window = bucket.get("window", "")
+        rem_frac = bucket.get("remainingFraction", 1.0)
+        pct = round((1.0 - rem_frac) * 100.0, 1)
+        if window == "5h":
+            five_h_pct = pct
+        elif window == "weekly":
+            weekly_pct = pct
+    return five_h_pct, weekly_pct
 
 
 def _query_minimax_usage() -> tuple[float | None, float | None]:
@@ -153,24 +248,52 @@ def _query_claude_usage() -> tuple[float | None, float | None]:
 
 
 def query_check_usage_pct(
-    coder: str,
+    script_id: str,
     model: str,
 ) -> tuple[float | None, float | None, str | None, str | None]:
-    """check-usage.js 및 프로바이더별 직접 쿼리(mmx, usage-*.py)를 통한 used_pct 조회.
+    """check-usage.js, agy language server, mmx, usage-*.py를 통한 used_pct 조회.
 
     Returns:
         (five_hour_pct, seven_day_pct, bucket, reason)
     """
-    coder_lower = coder.lower()
+    script_lower = script_id.lower()
     model_lower = model.lower()
 
-    # 1. MiniMax direct quota lookup
-    if "minimax" in coder_lower or "minimax" in model_lower:
+    # 1. Antigravity Gemini / Claude bucket lookup
+    if "claude-via-gemini" in script_lower or "claude-via-gemini" in model_lower:
+        five_h, seven_d = query_antigravity_group("claude")
+        if five_h is not None:
+            return five_h, seven_d, "claude", None
+        five_h, seven_d = query_antigravity_group("gemini")
+        if five_h is not None:
+            return five_h, seven_d, "gemini", None
+
+    if "gemini" in script_lower or "gemini" in model_lower:
+        five_h, seven_d = query_antigravity_group("gemini")
+        if five_h is not None:
+            return five_h, seven_d, "gemini", None
+
+    if "antigravity-claude" in script_lower or "antigravity" in script_lower:
+        five_h, seven_d = query_antigravity_group("claude")
+        if five_h is not None:
+            return five_h, seven_d, "claude", None
+
+    # 2. MiniMax direct quota lookup
+    if "minimax" in script_lower or "minimax" in model_lower:
         five_h, seven_d = _query_minimax_usage()
         if five_h is not None:
             return five_h, seven_d, "minimax", None
 
-    # 2. Check claude-dashboard check-usage.js
+    # 3. Claude Code direct lookup (Antigravity -> claude_usage -> check-usage.js)
+    if script_lower in ("sonnet", "haiku", "opus", "claude") or "claude" in model_lower:
+        five_h, seven_d = query_antigravity_group("claude")
+        if five_h is not None:
+            return five_h, seven_d, "claude", None
+        five_h, seven_d = _query_claude_usage()
+        if five_h is not None:
+            return five_h, seven_d, "claude", None
+
+    # 4. Check claude-dashboard check-usage.js fallback
     script = _find_check_usage_js()
     payload = None
     if script is not None:
@@ -185,35 +308,19 @@ def query_check_usage_pct(
             pass
 
     if payload and isinstance(payload, dict):
-        if coder_lower in ("sonnet", "haiku", "opus", "claude") or "claude" in model_lower:
+        if script_lower in ("sonnet", "haiku", "opus", "claude") or "claude" in model_lower:
             claude_entry = payload.get("claude")
             if claude_entry and isinstance(claude_entry, dict) and claude_entry.get("available") and not claude_entry.get("error"):
                 five_h = claude_entry.get("fiveHourPercent")
                 if five_h is not None:
                     return five_h, claude_entry.get("sevenDayPercent"), "claude", None
 
-        if coder_lower == "gemini":
-            gemini_entry = payload.get("gemini")
-            if gemini_entry and isinstance(gemini_entry, dict) and gemini_entry.get("available") and not gemini_entry.get("error"):
-                if gemini_entry.get("buckets"):
-                    for b in gemini_entry["buckets"]:
-                        if isinstance(b, dict) and "gemini" in str(b.get("modelId", "")).lower():
-                            return b.get("usedPercent"), None, "gemini", None
-                return gemini_entry.get("fiveHourPercent"), gemini_entry.get("sevenDayPercent"), "gemini", None
-
-        if coder_lower in payload:
-            entry = payload[coder_lower]
+        if script_lower in payload:
+            entry = payload[script_lower]
             if isinstance(entry, dict) and entry.get("available") and not entry.get("error"):
-                return entry.get("fiveHourPercent"), entry.get("sevenDayPercent"), coder_lower, None
+                return entry.get("fiveHourPercent"), entry.get("sevenDayPercent"), script_lower, None
 
-    # 3. Fallback to usage-claudecli.py for Claude models
-    if coder_lower in ("sonnet", "haiku", "opus", "claude") or "claude" in model_lower or "sonnet" in model_lower:
-        five_h, seven_d = _query_claude_usage()
-        if five_h is not None:
-            return five_h, seven_d, "claude", None
-        return None, None, "claude", "api_error"
-
-    if "minimax" in coder_lower or "minimax" in model_lower:
+    if "minimax" in script_lower or "minimax" in model_lower:
         return None, None, "minimax", "lookup_failed"
 
     return None, None, None, "unsupported_provider"

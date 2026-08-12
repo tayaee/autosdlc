@@ -48,7 +48,7 @@ def compute_cost_summary(cost_details: list[dict]) -> tuple[dict, str]:
         curr = cost_details[i]
         p_pct = prev.get("five_hour_used_pct")
         c_pct = curr.get("five_hour_used_pct")
-        desc = curr.get("description", f"step{i}")
+        desc = curr.get("ts_description") or curr.get("description", f"step{i}")
         if p_pct is not None and c_pct is not None:
             diff = round(c_pct - p_pct)
             parts.append(f"{desc} {diff:+.0f}%p ({p_pct:.0f}→{c_pct:.0f})")

@@ -6,9 +6,9 @@
 """log-cost — 단일 log-cost 계측 진입점 (issue-57).
 
 사용법:
-    log-cost.py [--coder CODER] [--model MODEL] [--reasoning-effort EFFORT]
+    log-cost.py [--script-id SCRIPT_ID] [--model MODEL] [--reasoning-effort EFFORT]
                 [--quiet|--verbose] [--auto] [--dryrun]
-                <repo-path> <issue-N|autofix-N> "<description>"
+                <repo-path> <issue-N|autofix-N> "<ts_description>"
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from cost_entry import append_cost_detail, query_check_usage_pct
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Log cost snapshot for issue")
-    parser.add_argument("--coder", default="sonnet", help="Coder/provider identifier")
+    parser.add_argument("--script-id", "--coder", dest="script_id", default="sonnet", help="Script / provider identifier")
     parser.add_argument("--model", default="Claude Sonnet 3.6", help="Full model name")
     parser.add_argument("--reasoning-effort", default=None, help="Reasoning effort")
     parser.add_argument("--quiet", action="store_true", help="Quiet mode (default)")
@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dryrun", action="store_true", help="Dry run mode")
     parser.add_argument("repo_path", help="Target repository path")
     parser.add_argument("target", help="Issue or autofix ID (e.g. issue-57)")
-    parser.add_argument("description", help="Snapshot description")
+    parser.add_argument("ts_description", help="Snapshot timestamp description")
 
     args = parser.parse_args(argv)
 
@@ -55,19 +55,19 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         repo = Path(args.repo_path).resolve()
-        five_h, seven_d, bucket, reason = query_check_usage_pct(args.coder, args.model)
+        five_h, seven_d, bucket, reason = query_check_usage_pct(args.script_id, args.model)
 
         path, entry = append_cost_detail(
             repo,
             args.target,
-            coder=args.coder,
+            script_id=args.script_id,
             model=args.model,
             reasoning_effort=reasoning_effort,
             bucket=bucket,
             reason=reason,
             five_hour_used_pct=five_h,
             seven_day_used_pct=seven_d,
-            description=args.description,
+            ts_description=args.ts_description,
             dryrun=args.dryrun,
         )
 
