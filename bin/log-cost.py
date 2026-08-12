@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Log cost snapshot for issue")
     parser.add_argument("--coder", default="sonnet", help="Coder/provider identifier")
     parser.add_argument("--model", default="Claude Sonnet 3.6", help="Full model name")
-    parser.add_argument("--reasoning-effort", default=os.environ.get("CLAUDE_CODE_REASONING_EFFORT"), help="Reasoning effort")
+    parser.add_argument("--reasoning-effort", default=None, help="Reasoning effort")
     parser.add_argument("--quiet", action="store_true", help="Quiet mode (default)")
     parser.add_argument("--verbose", action="store_true", help="Verbose mode")
     parser.add_argument("--auto", action="store_true", help="Auto detect model")
@@ -42,6 +42,17 @@ def main(argv: list[str] | None = None) -> int:
 
     verbose = args.verbose or os.environ.get("AACP_VERBOSE", "0") == "1"
 
+    reasoning_effort = (
+        args.reasoning_effort
+        or os.environ.get("CLAUDE_CODE_REASONING_EFFORT")
+        or os.environ.get("CLAUDE_CODE_EFFORT")
+        or os.environ.get("CLAUDE_REASONING_EFFORT")
+        or os.environ.get("CLAUDE_EFFORT")
+        or os.environ.get("REASONING_EFFORT")
+        or os.environ.get("EFFORT")
+        or "medium"
+    )
+
     try:
         repo = Path(args.repo_path).resolve()
         five_h, seven_d, bucket, reason = query_check_usage_pct(args.coder, args.model)
@@ -51,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
             args.target,
             coder=args.coder,
             model=args.model,
-            reasoning_effort=args.reasoning_effort,
+            reasoning_effort=reasoning_effort,
             bucket=bucket,
             reason=reason,
             five_hour_used_pct=five_h,

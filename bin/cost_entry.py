@@ -5,10 +5,10 @@ issue-57: 단계별 5h/7d 쿼터 계측 + reason 필드 + 단일 log-cost.py 통
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -16,6 +16,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 STREAM_RE = re.compile(r"^(issue|autofix)-([0-9]+)$")
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 ReasonType = Literal[
     "unsupported_provider",
@@ -29,7 +30,7 @@ class CostDetailEntry(BaseModel):
     ts: str
     coder: str
     model: str
-    reasoning_effort: str | None = None
+    reasoning_effort: str | None = "medium"
     bucket: str | None = None
     reason: str | None = None
     five_hour_used_pct: float | None = None
@@ -56,7 +57,7 @@ def append_cost_detail(
     coder: str,
     model: str,
     description: str,
-    reasoning_effort: str | None = None,
+    reasoning_effort: str | None = "medium",
     bucket: str | None = None,
     reason: str | None = None,
     five_hour_used_pct: float | None = None,
@@ -67,7 +68,7 @@ def append_cost_detail(
         ts=now_iso8601(),
         coder=coder,
         model=model,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort=reasoning_effort or "medium",
         bucket=bucket,
         reason=reason,
         five_hour_used_pct=five_hour_used_pct,
@@ -107,71 +108,112 @@ def _find_check_usage_js() -> Path | None:
     return versions[-1] if versions else None
 
 
+def _query_minimax_usage() -> tuple[float | None, float | None]:
+    try:
+        cache_path = Path.home() / ".cache/mmx/usage.json"
+        now = time.time()
+        if not cache_path.is_file() or (now - cache_path.stat().st_mtime) > 300:
+            res = subprocess.run(
+                ["mmx", "quota", "show", "--output", "json"],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                cache_path.write_text(res.stdout, encoding="utf-8")
+        if cache_path.is_file():
+            data = json.loads(cache_path.read_text(encoding="utf-8"))
+            for m in data.get("model_remains", []):
+                if m.get("model_name") == "general":
+                    rem_5h = m.get("current_interval_remaining_percent", 100)
+                    rem_7d = m.get("current_weekly_remaining_percent", 100)
+                    return float(100 - rem_5h), float(100 - rem_7d)
+    except Exception:  # noqa: BLE001, S110
+        pass
+    return None, None
+
+
+def _query_claude_usage() -> tuple[float | None, float | None]:
+    try:
+        script = SCRIPT_DIR / "usage-claudecli.py"
+        if script.is_file():
+            res = subprocess.run(
+                [sys.executable, str(script)],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                data = json.loads(res.stdout)
+                if data.get("available"):
+                    rem_5h = data.get("five_hour_remaining_pct")
+                    rem_7d = data.get("weekly_remaining_pct")
+                    if rem_5h is not None and rem_7d is not None:
+                        return float(100 - rem_5h), float(100 - rem_7d)
+    except Exception:  # noqa: BLE001, S110
+        pass
+    return None, None
+
+
 def query_check_usage_pct(
     coder: str,
     model: str,
 ) -> tuple[float | None, float | None, str | None, str | None]:
-    """claude-dashboard의 check-usage.js --json을 호출해 provider/bucket의 used_pct를 얻는다.
+    """check-usage.js 및 프로바이더별 직접 쿼리(mmx, usage-*.py)를 통한 used_pct 조회.
 
     Returns:
         (five_hour_pct, seven_day_pct, bucket, reason)
     """
-    script = _find_check_usage_js()
-    if script is None:
-        if os.environ.get("AACP_VERBOSE", "0") == "1":
-            print("WARN: claude-dashboard check-usage.js 없음 — used_pct 조회 불가", file=sys.stderr)
-        return None, None, None, "lookup_unavailable"
-
-    try:
-        result = subprocess.run(
-            ["node", str(script), "--json"],
-            capture_output=True, text=True, timeout=15, check=False,
-        )
-        if result.returncode != 0:
-            if os.environ.get("AACP_VERBOSE", "0") == "1":
-                print(f"WARN: check-usage node 실행 실패 (rc={result.returncode})", file=sys.stderr)
-            return None, None, None, "lookup_failed"
-        payload = json.loads(result.stdout)
-    except Exception as exc:  # noqa: BLE001
-        if os.environ.get("AACP_VERBOSE", "0") == "1":
-            print(f"WARN: check-usage 조회 실패 ({exc}) — used_pct 조회 불가", file=sys.stderr)
-        return None, None, None, "lookup_failed"
-
-    # Match provider key from coder/model
     coder_lower = coder.lower()
+    model_lower = model.lower()
 
-    if coder_lower in ("sonnet", "haiku", "opus", "claude"):
-        claude_entry = payload.get("claude")
-        if claude_entry and isinstance(claude_entry, dict) and claude_entry.get("available") and not claude_entry.get("error"):
-            return claude_entry.get("fiveHourPercent"), claude_entry.get("sevenDayPercent"), "claude", None
+    # 1. MiniMax direct quota lookup
+    if "minimax" in coder_lower or "minimax" in model_lower:
+        five_h, seven_d = _query_minimax_usage()
+        if five_h is not None:
+            return five_h, seven_d, "minimax", None
+
+    # 2. Check claude-dashboard check-usage.js
+    script = _find_check_usage_js()
+    payload = None
+    if script is not None:
+        try:
+            result = subprocess.run(
+                ["node", str(script), "--json"],
+                capture_output=True, text=True, timeout=15, check=False,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                payload = json.loads(result.stdout)
+        except Exception:  # noqa: BLE001, S110
+            pass
+
+    if payload and isinstance(payload, dict):
+        if coder_lower in ("sonnet", "haiku", "opus", "claude") or "claude" in model_lower:
+            claude_entry = payload.get("claude")
+            if claude_entry and isinstance(claude_entry, dict) and claude_entry.get("available") and not claude_entry.get("error"):
+                five_h = claude_entry.get("fiveHourPercent")
+                if five_h is not None:
+                    return five_h, claude_entry.get("sevenDayPercent"), "claude", None
+
+        if coder_lower == "gemini":
+            gemini_entry = payload.get("gemini")
+            if gemini_entry and isinstance(gemini_entry, dict) and gemini_entry.get("available") and not gemini_entry.get("error"):
+                if gemini_entry.get("buckets"):
+                    for b in gemini_entry["buckets"]:
+                        if isinstance(b, dict) and "gemini" in str(b.get("modelId", "")).lower():
+                            return b.get("usedPercent"), None, "gemini", None
+                return gemini_entry.get("fiveHourPercent"), gemini_entry.get("sevenDayPercent"), "gemini", None
+
+        if coder_lower in payload:
+            entry = payload[coder_lower]
+            if isinstance(entry, dict) and entry.get("available") and not entry.get("error"):
+                return entry.get("fiveHourPercent"), entry.get("sevenDayPercent"), coder_lower, None
+
+    # 3. Fallback to usage-claudecli.py for Claude models
+    if coder_lower in ("sonnet", "haiku", "opus", "claude") or "claude" in model_lower or "sonnet" in model_lower:
+        five_h, seven_d = _query_claude_usage()
+        if five_h is not None:
+            return five_h, seven_d, "claude", None
         return None, None, "claude", "api_error"
 
-    if coder_lower == "gemini":
-        gemini_entry = payload.get("gemini")
-        if not gemini_entry or not isinstance(gemini_entry, dict) or not gemini_entry.get("available") or gemini_entry.get("error"):
-            return None, None, "gemini", "api_error"
-        if gemini_entry.get("buckets"):
-            for b in gemini_entry["buckets"]:
-                if isinstance(b, dict) and "gemini" in str(b.get("modelId", "")).lower():
-                    return b.get("usedPercent"), None, "gemini", None
-        return gemini_entry.get("fiveHourPercent"), gemini_entry.get("sevenDayPercent"), "gemini", None
+    if "minimax" in coder_lower or "minimax" in model_lower:
+        return None, None, "minimax", "lookup_failed"
 
-    if coder_lower == "claude-via-gemini":
-        gemini_entry = payload.get("gemini")
-        if gemini_entry and isinstance(gemini_entry, dict) and gemini_entry.get("buckets"):
-            for b in gemini_entry["buckets"]:
-                if isinstance(b, dict) and "claude" in str(b.get("modelId", "")).lower():
-                    return b.get("usedPercent"), None, "claude-via-gemini", None
-        claude_entry = payload.get("claude")
-        if claude_entry and isinstance(claude_entry, dict) and claude_entry.get("available") and not claude_entry.get("error"):
-            return claude_entry.get("fiveHourPercent"), claude_entry.get("sevenDayPercent"), "claude-via-gemini", None
-        return None, None, "claude-via-gemini", "api_error"
-
-    if coder_lower in payload:
-        entry = payload[coder_lower]
-        if isinstance(entry, dict) and entry.get("available") and not entry.get("error"):
-            return entry.get("fiveHourPercent"), entry.get("sevenDayPercent"), coder_lower, None
-        return None, None, coder_lower, "api_error"
-
-    # Provider not supported by check-usage
     return None, None, None, "unsupported_provider"
