@@ -8,7 +8,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 set SCRIPT_DIR=%~dp0
-set PY_SCRIPT=%SCRIPT_DIR%.claude\skills\autoqafix\autoqafix-doctor.py
+set PY_SCRIPT=%SCRIPT_DIR%bin\autoqafix-doctor.py
 
 uv -q run "%PY_SCRIPT%" --repo "%CD%" %*
 set EXIT_VAL=%ERRORLEVEL%

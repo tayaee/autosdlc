@@ -11,6 +11,6 @@ if ! command -v uv > /dev/null 2>&1; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY_SCRIPT="$SCRIPT_DIR/.claude/skills/autoqafix/autofix.py"
+PY_SCRIPT="$SCRIPT_DIR/bin/autofix.py"
 
 uv -q run "$PY_SCRIPT" --repo "$(pwd)" --stream issue

@@ -95,10 +95,10 @@ frequency: <횟수> (<구간 시작> ~ <구간 끝>)
 ## 구현 형태
 
 - 로직은 Python 한 벌(PEP-723 인라인 메타데이터, `uv -q run`), 원본 위치는
-  `.claude/skills/autoqafix/`(스킬 폴더 = 배포 단위 — 스킬 설치만으로 엔진이 따라감).
+  `bin/`(스킬 폴더 = 배포 단위 — 스킬 설치만으로 엔진이 따라감).
   `.bat`/`.ps1`/`.sh`는 repo 루트의 얇은 shim(자기 위치 기준으로 스킬 폴더의 엔진
   호출). `.bat`은 에러 시 `pause`
-- LLM 래퍼는 `.claude/skills/autoqafix/wrappers/`에 번들:
+- LLM 래퍼는 `bin/wrappers/`에 번들:
   `{claudecli,minimaxcli,qwencli,codexcli,antigravitycli,deepseekcli}.{sh,ps1,bat}` +
   짝 `ping-*` 진단. 래퍼가 감싸는 실제 CLI(`claude`, `qwen` 등)는 PATH 전제.
   usage 스크립트는 실사용 3종(claudecli/minimaxcli/qwencli)만 엔진 폴더에 제공.
@@ -118,7 +118,7 @@ frequency: <횟수> (<구간 시작> ~ <구간 끝>)
 이 repo에서 autoqafix 스위트가 그 순간 동작 가능한가를 사람이/스크립트가
 실행 전에 점검하는 도구. `preflight(issue-10)`의 상위 집합이며, 사전
 구현된 모든 검사를 한 번에 돌린다. 진입점은 `autoqafix-doctor.{sh,ps1,bat}`
-(엔진은 `.claude/skills/autoqafix/autoqafix-doctor.py`).
+(엔진은 `bin/autoqafix-doctor.py`).
 
 검사 7항목 (순서 고정):
 

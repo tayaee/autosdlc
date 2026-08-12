@@ -59,7 +59,7 @@ _Avoid_: 에러 로그, 블랙리스트
 **LLM 래퍼**:
 `<provider>cli.{sh,ps1,bat}` 패밀리 — `claudecli` / `minimaxcli` / `qwencli` /
 `codexcli` / `antigravitycli` / `deepseekcli`. 서로 다른 LLM CLI를 `-p PROMPT` 동일
-인터페이스로 감싼 실행 스크립트로, `.claude/skills/autoqafix/wrappers/`에 번들되며
+인터페이스로 감싼 실행 스크립트로, `bin/wrappers/`에 번들되며
 감싸는 실제 CLI(`claude`, `qwen` 등)는 PATH 전제다. 이름에 `cli`를 붙이는 이유는 감싸는
 실행 파일과의 자기호출 충돌 방지다(예: `qwen.*` 금지). LLM 선정 로직의 산출물이 이 중
 하나이며, 후보와 유료/로컬 분류는 env `AUTOQAFIX_WRAPPERS`가 선언한다. 각 래퍼의 응답

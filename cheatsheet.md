@@ -57,7 +57,7 @@ autoqa-loop / autofix-loop / autodev-loop   (.sh/.bat/.ps1, 지금 실재)
  └────────────────────────────────┴────────────────────────────────┘
         │                                          │
         └────────────────────┬─────────────────────┘
-                              ▼ (실제 엔진 — .claude/skills/autoqafix/ 안)
+                              ▼ (실제 엔진 — bin/ 안)
  autoqa.py            ← qa 롤이 호출 (로그 스캔 → issues/autofix-#.md 보고)
  autofix.py           ← fix 롤이 --stream autofix(기본)로, dev 롤이
                           --stream issue 로 동일 스크립트를 호출
@@ -114,7 +114,7 @@ B(자동 수정 엔진)는 완전히 별세계가 아니다 — `autofix.py`가 
 git clone <autosdlc> ~/git/autosdlc && ~/git/autosdlc/install.sh   # 스킬 4종 symlink
 cd <대상 앱 repo>
 ~/git/autosdlc/autoqafix-doctor.sh          # 사전 점검 (FAIL 0이면 준비 완료)
-~/git/autosdlc/.claude/skills/autoqafix/wrappers/ping-claudecli.sh  # 실 LLM 응답 확인 (크레딧 소모)
+~/git/autosdlc/bin/wrappers/ping-claudecli.sh  # 실 LLM 응답 확인 (크레딧 소모)
 ```
 
 대상 repo에 필요한 것: `issues/`, `logs/`(qa 롤일 때), git identity·origin,
@@ -175,7 +175,7 @@ cd <대상 앱 repo> && ~/git/autosdlc/autoqa.sh
 
 ```bash
 export AUTOQAFIX_WRAPPERS="claudecli:paid,minimaxcli:paid,qwencli:local"  # 기본값
-uv -q run .claude/skills/autoqafix/select-llm.py --explain   # 판정 근거 표
+uv -q run bin/select-llm.py --explain   # 판정 근거 표
 export AUTOQAFIX_WRAPPER=qwencli                              # 강제 지정
 ```
 

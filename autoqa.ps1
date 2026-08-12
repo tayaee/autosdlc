@@ -5,7 +5,7 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$PyScript = Join-Path $ScriptDir ".claude/skills/autoqafix/autoqa.py"
+$PyScript = Join-Path $ScriptDir "bin/autoqa.py"
 
 uv -q run "$PyScript" --repo (Get-Location).Path
 exit $LASTEXITCODE

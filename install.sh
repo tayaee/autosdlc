@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — issue-21: 트리거 스킬 4종을 ~/.claude/skills/로 symlink 설치 (idempotent).
-#
-# 설치 대상 (4종):
-#   .claude/skills/autoqa     — 트리거 /autoqa
-#   .claude/skills/autofix    — 트리거 /autofix
-#   .claude/skills/autodev    — 트리거 /autodev
-#   .claude/skills/autoqafix  — 엔진 폴더 + 트리거 /autoqafix 겸용
+# install.sh — 트리거 스킬들을 ~/.claude/skills/로 symlink 설치 (idempotent).
 #
 # 2회 이상 실행해도 항상 같은 상태 (이미 존재하는 링크는 건너뜀).
 # 깨진(대상이 사라진) symlink는 자동으로 $src에 재연결한다.
@@ -25,7 +19,7 @@ installed=0
 skipped=0
 missing=0
 
-for skill in autoqa autofix autodev autoqafix; do
+for skill in aacpd autotdd autotddreviewfix tdd2; do
     src="$SRC_DIR/$skill"
     dst="$DST_DIR/$skill"
 

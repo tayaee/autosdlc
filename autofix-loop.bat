@@ -8,7 +8,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 set SCRIPT_DIR=%~dp0
-set PY_SCRIPT=%SCRIPT_DIR%.claude\skills\autoqafix\role-loop.py
+set PY_SCRIPT=%SCRIPT_DIR%bin\role-loop.py
 
 uv -q run "%PY_SCRIPT%" --repo "%CD%" --role fix %*
 set EXIT_VAL=%ERRORLEVEL%

@@ -5,7 +5,7 @@
 # ///
 """autoqafix_core — safety-net primitives shared by every autoqafix entry
 point (docs/autoqafix-design.md "루프", "뮤텍스"). Lives alongside the
-scripts that import it (`.claude/skills/autoqafix/`), so callers in this
+scripts that import it (`bin/`), so callers in this
 directory can `import autoqafix_core` with no sys.path surgery.
 
 Run this file directly with --selftest to exercise every function below

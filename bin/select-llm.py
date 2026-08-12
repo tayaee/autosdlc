@@ -22,8 +22,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-# select-llm.py lives at <repo_root>/.claude/skills/autoqafix/select-llm.py
-REPO_ROOT = Path(__file__).resolve().parents[3]
+# select-llm.py lives at <repo_root>/bin/select-llm.py
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WRAPPERS = "claudecli:paid,minimaxcli:paid,qwencli:local"
 
 

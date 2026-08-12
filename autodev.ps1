@@ -8,7 +8,7 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$PyScript = Join-Path $ScriptDir ".claude/skills/autoqafix/autofix.py"
+$PyScript = Join-Path $ScriptDir "bin/autofix.py"
 
 uv -q run "$PyScript" --repo (Get-Location).Path --stream issue
 exit $LASTEXITCODE
